@@ -30,9 +30,19 @@ let timerTime = 0;
 // === INITIALIZATION ===
 document.addEventListener('DOMContentLoaded', function () {
     initApp();
+
+    // Check if first run (no profiles exist)
+    if (typeof ProfileManager !== 'undefined' && ProfileManager.getProfiles().length === 0) {
+        showFirstRunSetup();
+        return; // Don't load app until profile is created
+    }
+
     loadInitialData();
     renderDashboard();
+    setupEventListeners();
+});
 
+function setupEventListeners() {
     document.addEventListener('click', function (e) {
         if (e.target.classList.contains('modal')) {
             e.target.classList.remove('active');
@@ -67,7 +77,124 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Ensure all modals are closed on startup
     closeAllModals();
-});
+}
+
+function showFirstRunSetup() {
+    const icons = typeof ProfileManager !== 'undefined' ? ProfileManager.getIcons() : ['💪'];
+    const iconOptions = icons.map(icon => `
+        <button type="button" class="icon-option" onclick="selectFirstRunIcon('${icon}')"
+                style="font-size: 2rem; padding: 12px; border: 3px solid transparent; border-radius: 12px;
+                       background: var(--md-sys-color-surface-variant); cursor: pointer; transition: all 0.2s;">
+            ${icon}
+        </button>
+    `).join('');
+
+    const content = `
+        <div class="first-run-overlay" style="
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--md-sys-color-background); z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 24px;">
+
+            <div style="max-width: 400px; width: 100%; text-align: center;">
+                <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-sys-color-primary); margin-bottom: 16px;">
+                    fitness_center
+                </span>
+                <h1 style="font-size: 1.5rem; margin-bottom: 8px;">Vítejte v aplikaci Můj Trénink!</h1>
+                <p style="color: var(--md-sys-color-on-surface-variant); margin-bottom: 32px;">
+                    Pro začátek si vytvořte svůj profil
+                </p>
+
+                <div class="card" style="text-align: left; padding: 24px;">
+                    <div class="form-group">
+                        <label class="form-label">Vaše jméno nebo přezdívka</label>
+                        <input type="text" id="firstRunName" class="text-field"
+                               placeholder="např. Tomáš, Táta, Sporťák..."
+                               style="font-size: 1.1rem; padding: 16px;">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Vyberte ikonu</label>
+                        <div id="firstRunIconSelector" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+                            ${iconOptions}
+                        </div>
+                        <input type="hidden" id="firstRunIcon" value="💪">
+                    </div>
+
+                    <button class="button filled-button full" onclick="completeFirstRunSetup()"
+                            style="margin-top: 24px; padding: 16px; font-size: 1.1rem;">
+                        <span class="material-symbols-outlined">arrow_forward</span>
+                        Začít trénovat
+                    </button>
+                </div>
+
+                <p style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant); margin-top: 24px;">
+                    Později můžete přidat další profily pro členy rodiny
+                </p>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', content);
+
+    // Select first icon by default
+    setTimeout(() => selectFirstRunIcon('💪'), 100);
+
+    // Focus on name input
+    setTimeout(() => {
+        const input = document.getElementById('firstRunName');
+        if (input) input.focus();
+    }, 200);
+}
+
+function selectFirstRunIcon(icon) {
+    document.getElementById('firstRunIcon').value = icon;
+
+    // Update visual selection
+    document.querySelectorAll('#firstRunIconSelector .icon-option').forEach(btn => {
+        const isSelected = btn.textContent.trim() === icon;
+        btn.style.borderColor = isSelected ? 'var(--md-sys-color-primary)' : 'transparent';
+        btn.style.transform = isSelected ? 'scale(1.1)' : 'scale(1)';
+    });
+}
+
+function completeFirstRunSetup() {
+    const name = document.getElementById('firstRunName').value.trim();
+    const icon = document.getElementById('firstRunIcon').value;
+
+    if (!name) {
+        showNotification('Zadejte prosím své jméno');
+        document.getElementById('firstRunName').focus();
+        return;
+    }
+
+    if (typeof ProfileManager === 'undefined') {
+        console.error('ProfileManager not loaded');
+        return;
+    }
+
+    // Create the first profile
+    const profile = ProfileManager.createProfile(name, icon);
+    ProfileManager.setActiveProfile(profile.id);
+
+    // Remove the overlay
+    const overlay = document.querySelector('.first-run-overlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.3s';
+        setTimeout(() => overlay.remove(), 300);
+    }
+
+    // Now initialize the app properly
+    loadInitialData();
+    renderDashboard();
+    setupEventListeners();
+
+    // Show welcome message
+    setTimeout(() => {
+        showNotification(`Vítejte, ${name}! 💪`);
+    }, 500);
+}
 
 function initApp() {
     // Initialize profile system first
@@ -1027,7 +1154,7 @@ function renderSettings() {
                 <div class="settings-item" onclick="checkForUpdate()">
                     <div>
                         <div>Zkontrolovat aktualizace</div>
-                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Verze: 1.5.0</div>
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Verze: 1.6.0</div>
                     </div>
                     <span class="material-symbols-outlined">system_update</span>
                 </div>

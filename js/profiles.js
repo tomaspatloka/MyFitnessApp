@@ -227,23 +227,19 @@ const ProfileManager = {
 
     // Initialize profile system
     init() {
-        // Try to migrate legacy data
+        // Try to migrate legacy data first
         this.migrateFromLegacy();
 
-        // If no profiles exist, create default one
-        if (this.getProfiles().length === 0) {
-            this.createProfile('Můj profil', '💪');
-        }
+        // If no profiles exist, DON'T create one - let first run setup handle it
+        // This allows the app to show the welcome screen for new users
 
-        // Ensure active profile is set
-        if (!this.getActiveProfileId()) {
+        // Ensure active profile is set (only if profiles exist)
+        if (!this.getActiveProfileId() && this.getProfiles().length > 0) {
             const profiles = this.getProfiles();
-            if (profiles.length > 0) {
-                this.setActiveProfile(profiles[0].id);
-            }
+            this.setActiveProfile(profiles[0].id);
         }
 
-        // Load active profile data
+        // Load active profile data (only if we have an active profile)
         const activeId = this.getActiveProfileId();
         if (activeId) {
             this.loadProfileData(activeId);
