@@ -80,6 +80,114 @@ function setupEventListeners() {
 }
 
 function showFirstRunSetup() {
+    // Show install step first, then profile setup
+    showInstallStep();
+}
+
+function showInstallStep() {
+    // Check if app can be installed (PWA install prompt available)
+    const canInstall = deferredPrompt !== null && deferredPrompt !== undefined;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         window.navigator.standalone === true;
+
+    // If already installed or can't install, skip to profile setup
+    if (isStandalone || !canInstall) {
+        showProfileStep();
+        return;
+    }
+
+    const content = `
+        <div class="first-run-overlay" id="installStepOverlay" style="
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--md-sys-color-background); z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 24px;">
+
+            <div style="max-width: 400px; width: 100%; text-align: center;">
+                <span class="material-symbols-outlined" style="font-size: 80px; color: var(--md-sys-color-primary); margin-bottom: 24px;">
+                    install_mobile
+                </span>
+                <h1 style="font-size: 1.5rem; margin-bottom: 12px;">Nainstalujte si aplikaci</h1>
+                <p style="color: var(--md-sys-color-on-surface-variant); margin-bottom: 32px; line-height: 1.5;">
+                    Pro nejlepší zážitek si nainstalujte aplikaci do telefonu.
+                    Bude fungovat i offline a spustí se jako normální aplikace.
+                </p>
+
+                <div class="card" style="padding: 24px;">
+                    <button class="button filled-button full" onclick="installFromFirstRun()"
+                            style="padding: 16px; font-size: 1.1rem; margin-bottom: 16px;">
+                        <span class="material-symbols-outlined">download</span>
+                        Nainstalovat aplikaci
+                    </button>
+
+                    <button class="button text-button full" onclick="skipInstallStep()"
+                            style="padding: 12px;">
+                        Přeskočit a pokračovat v prohlížeči
+                    </button>
+                </div>
+
+                <div style="margin-top: 32px; padding: 16px; background: var(--md-sys-color-surface-variant); border-radius: 12px;">
+                    <p style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); margin: 0;">
+                        <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">info</span>
+                        Aplikaci můžete nainstalovat i později v Nastavení
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', content);
+}
+
+async function installFromFirstRun() {
+    if (!deferredPrompt) {
+        showNotification('Instalace není dostupná');
+        skipInstallStep();
+        return;
+    }
+
+    try {
+        // Show the install prompt
+        deferredPrompt.prompt();
+
+        // Wait for user choice
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('Install outcome:', outcome);
+
+        // Clear the deferred prompt
+        deferredPrompt = null;
+
+        if (outcome === 'accepted') {
+            showNotification('Aplikace se instaluje...');
+            // Wait a bit for installation
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+
+        // Continue to profile setup
+        skipInstallStep();
+
+    } catch (error) {
+        console.error('Install error:', error);
+        showNotification('Instalace se nezdařila');
+        skipInstallStep();
+    }
+}
+
+function skipInstallStep() {
+    const overlay = document.getElementById('installStepOverlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.3s';
+        setTimeout(() => {
+            overlay.remove();
+            showProfileStep();
+        }, 300);
+    } else {
+        showProfileStep();
+    }
+}
+
+function showProfileStep() {
     const icons = typeof ProfileManager !== 'undefined' ? ProfileManager.getIcons() : ['💪'];
     const iconOptions = icons.map(icon => `
         <button type="button" class="icon-option" onclick="selectFirstRunIcon('${icon}')"
@@ -94,15 +202,15 @@ function showFirstRunSetup() {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: var(--md-sys-color-background); z-index: 9999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 24px;">
+            padding: 24px; overflow-y: auto;">
 
             <div style="max-width: 400px; width: 100%; text-align: center;">
                 <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-sys-color-primary); margin-bottom: 16px;">
                     fitness_center
                 </span>
-                <h1 style="font-size: 1.5rem; margin-bottom: 8px;">Vítejte v aplikaci Můj Trénink!</h1>
-                <p style="color: var(--md-sys-color-on-surface-variant); margin-bottom: 32px;">
-                    Pro začátek si vytvořte svůj profil
+                <h1 style="font-size: 1.5rem; margin-bottom: 8px;">Vytvořte si profil</h1>
+                <p style="color: var(--md-sys-color-on-surface-variant); margin-bottom: 24px;">
+                    Krok 2 ze 2
                 </p>
 
                 <div class="card" style="text-align: left; padding: 24px;">
@@ -1154,7 +1262,7 @@ function renderSettings() {
                 <div class="settings-item" onclick="checkForUpdate()">
                     <div>
                         <div>Zkontrolovat aktualizace</div>
-                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Verze: 1.6.0</div>
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Verze: 1.7.0</div>
                     </div>
                     <span class="material-symbols-outlined">system_update</span>
                 </div>
@@ -1675,53 +1783,92 @@ async function restoreFromCloud() {
 async function checkForUpdate() {
     showNotification('Kontroluji aktualizace...');
 
-    if ('serviceWorker' in navigator) {
-        try {
-            const registration = await navigator.serviceWorker.getRegistration();
-            if (registration) {
-                await registration.update();
+    if (!('serviceWorker' in navigator)) {
+        showNotification('Service Worker není podporován');
+        return;
+    }
 
-                if (registration.waiting) {
-                    // New version available
-                    if (confirm('Je dostupná nová verze aplikace. Chcete ji nainstalovat?')) {
-                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    try {
+        const registration = await navigator.serviceWorker.getRegistration();
+
+        if (!registration) {
+            showNotification('Service Worker není registrován');
+            return;
+        }
+
+        // Force check for updates
+        await registration.update();
+
+        // Wait a moment for the update check to complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Check all possible states for a new version
+        const newWorker = registration.waiting || registration.installing;
+
+        if (newWorker) {
+            if (confirm('Je dostupná nová verze aplikace. Chcete ji nainstalovat nyní?')) {
+                // Listen for the new service worker to become active
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'activated') {
                         window.location.reload();
                     }
-                } else {
-                    showNotification('Aplikace je aktuální');
+                });
+
+                // Tell the waiting service worker to skip waiting
+                if (registration.waiting) {
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+
+                // If it's installing, wait for it
+                if (registration.installing) {
+                    showNotification('Instaluji aktualizaci...');
                 }
             }
-        } catch (error) {
-            console.error('Update check failed:', error);
-            showNotification('Chyba při kontrole aktualizací');
+        } else {
+            // Try fetching the SW file directly to compare
+            try {
+                const response = await fetch('/sw.js?check=' + Date.now(), { cache: 'no-store' });
+                const text = await response.text();
+                const versionMatch = text.match(/APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+                const currentVersion = '1.7.0';
+
+                if (versionMatch && versionMatch[1] !== currentVersion) {
+                    if (confirm(`Nová verze ${versionMatch[1]} je dostupná. Chcete aktualizovat?`)) {
+                        await forceUpdate();
+                    }
+                } else {
+                    showNotification('Aplikace je aktuální (v' + currentVersion + ')');
+                }
+            } catch {
+                showNotification('Aplikace je aktuální');
+            }
         }
-    } else {
-        showNotification('Service Worker není podporován');
+    } catch (error) {
+        console.error('Update check failed:', error);
+        showNotification('Chyba při kontrole aktualizací');
     }
 }
 
 async function forceUpdate() {
-    if (!confirm('Toto smaže cache a znovu načte aplikaci. Data zůstanou zachována. Pokračovat?')) {
-        return;
-    }
-
-    showNotification('Aktualizuji...');
+    showNotification('Aktualizuji aplikaci...');
 
     try {
         // Clear all caches
         if ('caches' in window) {
             const cacheNames = await caches.keys();
             await Promise.all(cacheNames.map(name => caches.delete(name)));
+            console.log('Cache cleared:', cacheNames);
         }
 
-        // Unregister service worker
+        // Unregister all service workers
         if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
             await Promise.all(registrations.map(reg => reg.unregister()));
+            console.log('Service workers unregistered:', registrations.length);
         }
 
-        // Clear localStorage cache flag (keep user data)
-        localStorage.removeItem('sw-cache-version');
+        // Small delay to ensure everything is cleaned up
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Reload page
         window.location.reload(true);

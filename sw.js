@@ -1,6 +1,6 @@
 // sw.js
-const CACHE_NAME = 'trenink-tracker-v7';
-const APP_VERSION = '1.6.0';
+const CACHE_NAME = 'trenink-tracker-v8';
+const APP_VERSION = '1.7.0';
 const ASSETS = [
   '/',
   '/index.html',
