@@ -1,0 +1,147 @@
+/* === NOTIFICATION SETTINGS STYLES === */
+
+.notification-settings {
+    margin-top: var(--spacing-md);
+}
+
+.notification-card {
+    background-color: var(--md-sys-color-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+    overflow: hidden;
+}
+
+.notification-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background-color: var(--md-sys-color-surface-variant);
+    font-weight: 500;
+}
+
+.notification-card-header .material-symbols-outlined {
+    font-size: 20px;
+}
+
+.notification-card-content {
+    padding: var(--spacing-md);
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* Select styling to match text-field */
+select.text-field {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 32px;
+    cursor: pointer;
+}
+
+.dark-mode select.text-field {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23aaa' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+}
+
+/* Time input styling */
+input[type="time"].text-field {
+    cursor: pointer;
+}
+
+/* Notification permission banner */
+.notification-permission-banner {
+    background: linear-gradient(135deg, var(--md-sys-color-primary-container), var(--md-sys-color-secondary-container));
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+}
+
+.notification-permission-banner .material-symbols-outlined {
+    font-size: 48px;
+    color: var(--md-sys-color-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+/* Quick reminder button */
+.quick-reminder-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+    background-color: var(--md-sys-color-tertiary-container, #ffecb3);
+    color: var(--md-sys-color-on-tertiary-container, #5d4037);
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.quick-reminder-btn:hover {
+    opacity: 0.9;
+}
+
+/* Notification status indicator */
+.notification-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.notification-status.active {
+    background-color: var(--md-sys-color-success-container, #c8e6c9);
+    color: var(--md-sys-color-on-success-container, #1b5e20);
+}
+
+.notification-status.inactive {
+    background-color: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Animation for notification toggle */
+.notification-card {
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.notification-card.disabled {
+    opacity: 0.6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 400px) {
+    .notification-card-header {
+        flex-wrap: wrap;
+    }
+    
+    .notification-card-header .switch {
+        margin-left: 0;
+        margin-top: 8px;
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+    }
+}
+
+/* Success container color (if not defined) */
+:root {
+    --md-sys-color-success-container: #c8e6c9;
+    --md-sys-color-on-success-container: #1b5e20;
+    --md-sys-color-tertiary-container: #ffecb3;
+    --md-sys-color-on-tertiary-container: #5d4037;
+}
+
+.dark-mode {
+    --md-sys-color-success-container: #2e7d32;
+    --md-sys-color-on-success-container: #c8e6c9;
+    --md-sys-color-tertiary-container: #ff8f00;
+    --md-sys-color-on-tertiary-container: #fff8e1;
+}

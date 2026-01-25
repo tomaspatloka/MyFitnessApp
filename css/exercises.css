@@ -1,0 +1,413 @@
+/* === EXERCISE EDITOR STYLES === */
+
+/* Modal pro editor */
+.exercise-editor-modal {
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.exercise-editor-modal .modal-header {
+    position: sticky;
+    top: 0;
+    background: var(--md-sys-color-surface);
+    z-index: 10;
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    margin-bottom: var(--spacing-md);
+}
+
+.exercise-editor-modal .modal-close-btn {
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.exercise-editor-content {
+    padding: 0 var(--spacing-xs);
+}
+
+/* Form row - dvě pole vedle sebe */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+@media (max-width: 400px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Textarea styling */
+.textarea {
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+/* Category selector */
+.category-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.category-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: 2px solid var(--md-sys-color-outline-variant);
+    border-radius: 16px;
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.category-chip .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.category-chip:hover {
+    border-color: var(--cat-color, var(--md-sys-color-primary));
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.category-chip.selected {
+    background: var(--cat-color, var(--md-sys-color-primary));
+    border-color: var(--cat-color, var(--md-sys-color-primary));
+    color: white;
+}
+
+.dark-mode .category-chip:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Time selector */
+.time-selector {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.time-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: 2px solid var(--md-sys-color-outline-variant);
+    border-radius: 16px;
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 1;
+    justify-content: center;
+}
+
+.time-chip .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.time-chip:hover {
+    border-color: var(--md-sys-color-primary);
+}
+
+.time-chip.selected {
+    background: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}
+
+/* Day selector */
+.day-selector {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+}
+
+.day-chip {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--radius-sm);
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.day-chip:hover {
+    background: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}
+
+/* === SEZNAM VLASTNÍCH CVIKŮ === */
+
+.custom-exercises-container {
+    margin-top: var(--spacing-md);
+}
+
+.exercise-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.exercise-list-header span {
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.875rem;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-lg) var(--spacing-md);
+}
+
+.empty-state h3 {
+    margin: var(--spacing-md) 0 var(--spacing-xs);
+    color: var(--md-sys-color-on-surface);
+}
+
+.empty-state p {
+    color: var(--md-sys-color-on-surface-variant);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* Category group */
+.exercise-category-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: linear-gradient(135deg, var(--cat-color, var(--md-sys-color-primary)) 0%, transparent 100%);
+    background-size: 200% 100%;
+    background-position: right;
+    border-left: 4px solid var(--cat-color, var(--md-sys-color-primary));
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 500;
+}
+
+.category-header .material-symbols-outlined {
+    color: var(--cat-color, var(--md-sys-color-primary));
+}
+
+.category-count {
+    background: var(--md-sys-color-surface-variant);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-left: auto;
+}
+
+/* Exercise cards */
+.exercise-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.exercise-card {
+    background: var(--md-sys-color-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.exercise-card:hover {
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+.exercise-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--md-sys-color-surface-variant);
+}
+
+.exercise-card-title {
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+}
+
+.exercise-card-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.icon-button-sm {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--md-sys-color-on-surface-variant);
+    transition: background 0.2s;
+}
+
+.icon-button-sm:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.icon-button-sm .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.dark-mode .icon-button-sm:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.exercise-card-body {
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.exercise-card-desc {
+    font-size: 0.875rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-bottom: var(--spacing-sm);
+}
+
+.exercise-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.meta-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--md-sys-color-surface-variant);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* === TAB PRO CVIKY === */
+
+.exercises-tab-content {
+    padding: var(--spacing-md);
+}
+
+/* Quick add button v planu */
+.quick-add-exercise {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+    border: 2px dashed var(--md-sys-color-outline-variant);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--md-sys-color-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.quick-add-exercise:hover {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+}
+
+/* Custom exercise badge */
+.custom-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 6px;
+    background: var(--md-sys-color-tertiary-container, #ffecb3);
+    color: var(--md-sys-color-on-tertiary-container, #5d4037);
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 500;
+    margin-left: 4px;
+}
+
+.custom-badge .material-symbols-outlined {
+    font-size: 12px;
+}
+
+/* Remove button for exercises in plan */
+.exercise-remove-btn {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.exercise-item:hover .exercise-remove-btn {
+    opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 360px) {
+    .category-chip span:not(.material-symbols-outlined) {
+        display: none;
+    }
+    
+    .time-chip span:not(.material-symbols-outlined) {
+        display: none;
+    }
+    
+    .category-chip,
+    .time-chip {
+        padding: 8px;
+    }
+}
+
+/* === TEMPLATES SECTION === */
+
+.templates-section {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.templates-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.875rem;
+}
+
+.template-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.template-chip {
+    padding: 4px 10px;
+    background: var(--md-sys-color-surface-variant);
+    border: none;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.template-chip:hover {
+    background: var(--md-sys-color-primary-container);
+}
