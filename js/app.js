@@ -1395,9 +1395,9 @@ function showNotification(message) {
     const messageEl = document.getElementById('notificationMessage');
     if (!notification || !messageEl) return;
     messageEl.textContent = message;
-    notification.style.display = 'flex';
+    notification.classList.add('show');
     setTimeout(() => {
-        notification.style.display = 'none';
+        notification.classList.remove('show');
     }, 3000);
 }
 

@@ -746,21 +746,21 @@ input:checked+.slider:before {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    /* bottom: 100px; - Removed to center */
     background: var(--md-sys-color-on-surface);
-    /* Inverse Surface */
     color: var(--md-sys-color-surface);
-    /* Inverse On Surface */
     padding: 14px 16px;
     border-radius: 4px;
-    /* Snackbars have small radius */
     z-index: 3000;
     box-shadow: var(--md-sys-elevation-2);
     font-size: 0.875rem;
-    display: flex;
     align-items: center;
     gap: 12px;
     min-width: 300px;
+    max-width: 90vw;
+}
+
+.notification.show {
+    display: flex;
 }
 
 .notification-icon {
