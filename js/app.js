@@ -976,6 +976,20 @@ function renderSettings() {
             
             <div class="settings-group">
                 <h3 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--md-sys-color-primary);">Aplikace</h3>
+                <div class="settings-item" onclick="checkForUpdate()">
+                    <div>
+                        <div>Zkontrolovat aktualizace</div>
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Verze: 1.4.0</div>
+                    </div>
+                    <span class="material-symbols-outlined">system_update</span>
+                </div>
+                <div class="settings-item" onclick="forceUpdate()">
+                    <div>
+                        <div>Vynutit aktualizaci</div>
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Smaže cache a načte novou verzi</div>
+                    </div>
+                    <span class="material-symbols-outlined">refresh</span>
+                </div>
                 <div class="settings-item" onclick="showAppInfo()">
                     <span>O aplikaci</span>
                     <span class="material-symbols-outlined">info</span>
@@ -1479,6 +1493,66 @@ async function restoreFromCloud() {
         }
     } else {
         showNotification('Neplatné ID');
+    }
+}
+
+// === APP UPDATE FUNCTIONS ===
+async function checkForUpdate() {
+    showNotification('Kontroluji aktualizace...');
+
+    if ('serviceWorker' in navigator) {
+        try {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) {
+                await registration.update();
+
+                if (registration.waiting) {
+                    // New version available
+                    if (confirm('Je dostupná nová verze aplikace. Chcete ji nainstalovat?')) {
+                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        window.location.reload();
+                    }
+                } else {
+                    showNotification('Aplikace je aktuální');
+                }
+            }
+        } catch (error) {
+            console.error('Update check failed:', error);
+            showNotification('Chyba při kontrole aktualizací');
+        }
+    } else {
+        showNotification('Service Worker není podporován');
+    }
+}
+
+async function forceUpdate() {
+    if (!confirm('Toto smaže cache a znovu načte aplikaci. Data zůstanou zachována. Pokračovat?')) {
+        return;
+    }
+
+    showNotification('Aktualizuji...');
+
+    try {
+        // Clear all caches
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map(name => caches.delete(name)));
+        }
+
+        // Unregister service worker
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map(reg => reg.unregister()));
+        }
+
+        // Clear localStorage cache flag (keep user data)
+        localStorage.removeItem('sw-cache-version');
+
+        // Reload page
+        window.location.reload(true);
+    } catch (error) {
+        console.error('Force update failed:', error);
+        showNotification('Chyba při aktualizaci');
     }
 }
 

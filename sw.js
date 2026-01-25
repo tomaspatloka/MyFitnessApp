@@ -1,5 +1,6 @@
 // sw.js
-const CACHE_NAME = 'trenink-tracker-v4';
+const CACHE_NAME = 'trenink-tracker-v5';
+const APP_VERSION = '1.4.0';
 const ASSETS = [
   '/',
   '/index.html',
@@ -32,6 +33,13 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+// Message handler pro skip waiting
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Fetch: cache-first pro statické věci, network-first pro API
