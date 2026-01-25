@@ -18,7 +18,8 @@ const AppState = {
         darkMode: false,
         autoSave: true,
         showTips: true,
-        winterMode: true
+        winterMode: true,
+        cloudSync: false
     }
 };
 
@@ -902,6 +903,43 @@ function renderSettings() {
             </div>
             
             <div class="settings-group">
+                <h3 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--md-sys-color-primary);">
+                    <span class="material-symbols-outlined" style="font-size: 18px; vertical-align: text-bottom;">cloud</span>
+                    Cloudová synchronizace
+                </h3>
+                <div class="settings-item">
+                    <div>
+                        <div>Synchronizace do cloudu</div>
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Záloha dat na Cloudflare</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" ${AppState.settings.cloudSync ? 'checked' : ''} onchange="toggleCloudSync(this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="syncStatus" style="padding: 12px; background: var(--md-sys-color-surface-variant); border-radius: 8px; margin-top: 8px; font-size: 0.8rem;">
+                    ${typeof CloudSync !== 'undefined' ? `
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span class="material-symbols-outlined" style="font-size: 16px; color: ${CloudSync.isOnline() ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-error)'};">
+                                ${CloudSync.isOnline() ? 'cloud_done' : 'cloud_off'}
+                            </span>
+                            <span>${CloudSync.isOnline() ? 'Online' : 'Offline'}</span>
+                        </div>
+                        <div>Poslední sync: ${CloudSync.getSyncStatus().lastSyncFormatted}</div>
+                    ` : '<div>Načítání...</div>'}
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button class="button outlined-button" onclick="syncNow()" style="flex: 1;">
+                        <span class="material-symbols-outlined">sync</span>
+                        Synchronizovat
+                    </button>
+                    <button class="button text-button" onclick="showSyncId()" title="Zobrazit ID pro obnovu">
+                        <span class="material-symbols-outlined">key</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-group">
                 <h3 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--md-sys-color-primary);">Data</h3>
                 <div class="settings-item">
                     <span>Automatické ukládání</span>
@@ -1370,6 +1408,78 @@ function resetApp() {
 function syncData() {
     saveData();
     showNotification('Data synchronizována');
+}
+
+// === CLOUD SYNC FUNCTIONS ===
+function toggleCloudSync(checkbox) {
+    AppState.settings.cloudSync = checkbox.checked;
+    saveData();
+    if (checkbox.checked) {
+        showNotification('Cloudová synchronizace zapnuta');
+        syncNow();
+    } else {
+        showNotification('Cloudová synchronizace vypnuta');
+    }
+}
+
+async function syncNow() {
+    if (typeof CloudSync === 'undefined') {
+        showNotification('Sync modul není načten');
+        return;
+    }
+
+    showNotification('Synchronizuji...');
+    const result = await CloudSync.fullSync();
+
+    if (result.success) {
+        showNotification('Synchronizace dokončena');
+        // Refresh settings view if on settings tab
+        if (AppState.currentTab === 'settings') {
+            renderSettings();
+        }
+    } else {
+        showNotification('Chyba: ' + (result.error || 'Neznámá chyba'));
+    }
+}
+
+function showSyncId() {
+    if (typeof CloudSync === 'undefined') return;
+
+    const status = CloudSync.getSyncStatus();
+    const message = `Vaše ID pro obnovu dat:\n\n${status.userId}\n\nUložte si toto ID pro případnou obnovu dat na jiném zařízení.`;
+
+    if (confirm(message + '\n\nKopírovat do schránky?')) {
+        CloudSync.copyUserId().then(success => {
+            if (success) {
+                showNotification('ID zkopírováno');
+            }
+        });
+    }
+}
+
+async function restoreFromCloud() {
+    const userId = prompt('Zadejte vaše ID pro obnovu:');
+    if (!userId) return;
+
+    if (typeof CloudSync === 'undefined') {
+        showNotification('Sync modul není načten');
+        return;
+    }
+
+    if (CloudSync.setUserId(userId)) {
+        showNotification('Stahuji data...');
+        const result = await CloudSync.pullFromCloud();
+
+        if (result.success && result.data) {
+            CloudSync.mergeData(result.data);
+            showNotification('Data obnovena');
+            renderSettings();
+        } else {
+            showNotification('Data nenalezena');
+        }
+    } else {
+        showNotification('Neplatné ID');
+    }
 }
 
 function startTodayWorkout() {

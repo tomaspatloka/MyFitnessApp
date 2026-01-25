@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'trenink-tracker-v3';
+const CACHE_NAME = 'trenink-tracker-v4';
 const ASSETS = [
   '/',
   '/index.html',
@@ -11,6 +11,7 @@ const ASSETS = [
   '/css/exercises.css',
   '/js/data.js',
   '/js/app.js',
+  '/js/sync.js',
   '/js/notifications.js',
   '/js/exercises.js'
 ];
@@ -33,10 +34,18 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: cache-first pro statické věci, fallback na index
+// Fetch: cache-first pro statické věci, network-first pro API
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  const url = new URL(req.url);
 
+  // API calls - network first (no cache)
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  // Static assets - cache first
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;
