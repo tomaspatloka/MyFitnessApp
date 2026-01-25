@@ -1,6 +1,6 @@
 // sw.js
-const CACHE_NAME = 'trenink-tracker-v5';
-const APP_VERSION = '1.4.0';
+const CACHE_NAME = 'trenink-tracker-v6';
+const APP_VERSION = '1.5.0';
 const ASSETS = [
   '/',
   '/index.html',
@@ -11,6 +11,7 @@ const ASSETS = [
   '/css/notifications.css',
   '/css/exercises.css',
   '/js/data.js',
+  '/js/profiles.js',
   '/js/app.js',
   '/js/sync.js',
   '/js/notifications.js',

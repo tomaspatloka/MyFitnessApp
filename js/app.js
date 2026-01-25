@@ -70,12 +70,18 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function initApp() {
-    const saved = localStorage.getItem('fitnessAppData');
-    if (saved) {
-        const parsed = JSON.parse(saved);
-        Object.assign(AppState, parsed);
+    // Initialize profile system first
+    if (typeof ProfileManager !== 'undefined') {
+        ProfileManager.init();
     } else {
-        initializeDefaultData();
+        // Fallback to legacy loading
+        const saved = localStorage.getItem('fitnessAppData');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            Object.assign(AppState, parsed);
+        } else {
+            initializeDefaultData();
+        }
     }
 
     if (AppState.settings.darkMode) {
@@ -846,6 +852,9 @@ function renderWeightLineChart(weightHistory) {
 }
 
 function renderSettings() {
+    const activeProfile = typeof ProfileManager !== 'undefined' ? ProfileManager.getActiveProfile() : null;
+    const profiles = typeof ProfileManager !== 'undefined' ? ProfileManager.getProfiles() : [];
+
     const content = `
         <div class="card">
             <div class="card-header">
@@ -854,7 +863,46 @@ function renderSettings() {
                     Nastavení aplikace
                 </h2>
             </div>
-            
+
+            <!-- Profile Section -->
+            <div class="settings-group">
+                <h3 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--md-sys-color-primary);">
+                    <span class="material-symbols-outlined" style="font-size: 18px; vertical-align: text-bottom;">person</span>
+                    Profil
+                </h3>
+                ${activeProfile ? `
+                    <div class="profile-card" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--md-sys-color-primary-container); border-radius: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 2rem;">${activeProfile.icon}</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; font-size: 1.1rem;">${activeProfile.name}</div>
+                            <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Sync ID: ${activeProfile.syncId.substring(0, 15)}...</div>
+                        </div>
+                        <button class="icon-button" onclick="editCurrentProfile()" title="Upravit profil">
+                            <span class="material-symbols-outlined">edit</span>
+                        </button>
+                    </div>
+                ` : ''}
+                ${profiles.length > 1 ? `
+                    <div class="settings-item" onclick="showProfileSwitcher()">
+                        <div>
+                            <div>Přepnout profil</div>
+                            <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">${profiles.length} profilů</div>
+                        </div>
+                        <span class="material-symbols-outlined">swap_horiz</span>
+                    </div>
+                ` : ''}
+                <div class="settings-item" onclick="showAddProfileModal()">
+                    <span>Přidat nový profil</span>
+                    <span class="material-symbols-outlined">person_add</span>
+                </div>
+                ${profiles.length > 1 ? `
+                    <div class="settings-item" onclick="showDeleteProfileModal()">
+                        <span style="color: var(--md-sys-color-error);">Smazat profil</span>
+                        <span class="material-symbols-outlined" style="color: var(--md-sys-color-error);">person_remove</span>
+                    </div>
+                ` : ''}
+            </div>
+
             <div class="settings-group">
                 <h3 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--md-sys-color-primary);">Vzhled</h3>
                 <div class="settings-item">
@@ -979,7 +1027,7 @@ function renderSettings() {
                 <div class="settings-item" onclick="checkForUpdate()">
                     <div>
                         <div>Zkontrolovat aktualizace</div>
-                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Verze: 1.4.0</div>
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Verze: 1.5.0</div>
                     </div>
                     <span class="material-symbols-outlined">system_update</span>
                 </div>
@@ -1571,6 +1619,244 @@ function startTodayWorkout() {
             }, 500);
         }
     }, 100);
+}
+
+// === PROFILE MANAGEMENT FUNCTIONS ===
+function showProfileSwitcher() {
+    if (typeof ProfileManager === 'undefined') return;
+
+    const profiles = ProfileManager.getProfiles();
+    const activeId = ProfileManager.getActiveProfileId();
+
+    const profileList = profiles.map(p => `
+        <div class="settings-item ${p.id === activeId ? 'active-profile' : ''}"
+             onclick="switchToProfile('${p.id}')"
+             style="${p.id === activeId ? 'background: var(--md-sys-color-primary-container);' : ''}">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 1.5rem;">${p.icon}</span>
+                <div>
+                    <div>${p.name}</div>
+                    ${p.id === activeId ? '<div style="font-size: 0.7rem; color: var(--md-sys-color-primary);">Aktivní</div>' : ''}
+                </div>
+            </div>
+            ${p.id === activeId ? '<span class="material-symbols-outlined" style="color: var(--md-sys-color-primary);">check_circle</span>' : ''}
+        </div>
+    `).join('');
+
+    showCustomModal('Vyberte profil', profileList);
+}
+
+function switchToProfile(profileId) {
+    if (typeof ProfileManager === 'undefined') return;
+
+    ProfileManager.switchProfile(profileId);
+    closeCustomModal();
+    showNotification('Profil přepnut');
+
+    // Reload current view
+    if (AppState.currentTab === 'settings') {
+        renderSettings();
+    } else {
+        renderDashboard();
+    }
+}
+
+function showAddProfileModal() {
+    const icons = typeof ProfileManager !== 'undefined' ? ProfileManager.getIcons() : ['💪'];
+    const iconOptions = icons.map(icon => `
+        <button type="button" class="icon-option" onclick="selectProfileIcon('${icon}')" style="font-size: 1.5rem; padding: 8px; border: 2px solid transparent; border-radius: 8px; background: var(--md-sys-color-surface-variant); cursor: pointer;">
+            ${icon}
+        </button>
+    `).join('');
+
+    const content = `
+        <div class="form-group">
+            <label class="form-label">Jméno profilu</label>
+            <input type="text" id="newProfileName" class="text-field" placeholder="např. Táta, Máma, Honza...">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Ikona</label>
+            <div id="iconSelector" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                ${iconOptions}
+            </div>
+            <input type="hidden" id="selectedProfileIcon" value="💪">
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+            <button class="button text-button" onclick="closeCustomModal()" style="flex: 1;">Zrušit</button>
+            <button class="button filled-button" onclick="createNewProfile()" style="flex: 1;">Vytvořit</button>
+        </div>
+    `;
+
+    showCustomModal('Nový profil', content);
+
+    // Select first icon by default
+    setTimeout(() => selectProfileIcon('💪'), 100);
+}
+
+function selectProfileIcon(icon) {
+    document.getElementById('selectedProfileIcon').value = icon;
+
+    // Update visual selection
+    document.querySelectorAll('.icon-option').forEach(btn => {
+        btn.style.borderColor = btn.textContent.trim() === icon ? 'var(--md-sys-color-primary)' : 'transparent';
+    });
+}
+
+function createNewProfile() {
+    const name = document.getElementById('newProfileName').value.trim();
+    const icon = document.getElementById('selectedProfileIcon').value;
+
+    if (!name) {
+        showNotification('Zadejte jméno profilu');
+        return;
+    }
+
+    if (typeof ProfileManager === 'undefined') return;
+
+    const profile = ProfileManager.createProfile(name, icon);
+    closeCustomModal();
+    showNotification(`Profil "${name}" vytvořen`);
+
+    // Ask if user wants to switch
+    if (confirm(`Chcete se přepnout na nový profil "${name}"?`)) {
+        ProfileManager.switchProfile(profile.id);
+        renderSettings();
+    }
+}
+
+function editCurrentProfile() {
+    if (typeof ProfileManager === 'undefined') return;
+
+    const profile = ProfileManager.getActiveProfile();
+    if (!profile) return;
+
+    const icons = ProfileManager.getIcons();
+    const iconOptions = icons.map(icon => `
+        <button type="button" class="icon-option" onclick="selectProfileIcon('${icon}')" style="font-size: 1.5rem; padding: 8px; border: 2px solid ${icon === profile.icon ? 'var(--md-sys-color-primary)' : 'transparent'}; border-radius: 8px; background: var(--md-sys-color-surface-variant); cursor: pointer;">
+            ${icon}
+        </button>
+    `).join('');
+
+    const content = `
+        <div class="form-group">
+            <label class="form-label">Jméno profilu</label>
+            <input type="text" id="editProfileName" class="text-field" value="${profile.name}">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Ikona</label>
+            <div id="iconSelector" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                ${iconOptions}
+            </div>
+            <input type="hidden" id="selectedProfileIcon" value="${profile.icon}">
+        </div>
+        <div class="form-group" style="margin-top: 16px; padding: 12px; background: var(--md-sys-color-surface-variant); border-radius: 8px;">
+            <label class="form-label">Sync ID (pro obnovu dat)</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <code style="flex: 1; font-size: 0.75rem; word-break: break-all;">${profile.syncId}</code>
+                <button class="icon-button" onclick="copySyncId('${profile.syncId}')" title="Kopírovat">
+                    <span class="material-symbols-outlined">content_copy</span>
+                </button>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+            <button class="button text-button" onclick="closeCustomModal()" style="flex: 1;">Zrušit</button>
+            <button class="button filled-button" onclick="saveProfileEdit('${profile.id}')" style="flex: 1;">Uložit</button>
+        </div>
+    `;
+
+    showCustomModal('Upravit profil', content);
+}
+
+function saveProfileEdit(profileId) {
+    const name = document.getElementById('editProfileName').value.trim();
+    const icon = document.getElementById('selectedProfileIcon').value;
+
+    if (!name) {
+        showNotification('Zadejte jméno profilu');
+        return;
+    }
+
+    if (typeof ProfileManager === 'undefined') return;
+
+    ProfileManager.renameProfile(profileId, name, icon);
+    closeCustomModal();
+    showNotification('Profil upraven');
+    renderSettings();
+}
+
+function copySyncId(syncId) {
+    navigator.clipboard.writeText(syncId).then(() => {
+        showNotification('Sync ID zkopírováno');
+    }).catch(() => {
+        showNotification('Kopírování selhalo');
+    });
+}
+
+function showDeleteProfileModal() {
+    if (typeof ProfileManager === 'undefined') return;
+
+    const profiles = ProfileManager.getProfiles();
+    const activeId = ProfileManager.getActiveProfileId();
+
+    // Can't delete if only one profile
+    if (profiles.length <= 1) {
+        showNotification('Nelze smazat jediný profil');
+        return;
+    }
+
+    const profileList = profiles.filter(p => p.id !== activeId).map(p => `
+        <div class="settings-item" onclick="confirmDeleteProfile('${p.id}', '${p.name}')">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 1.5rem;">${p.icon}</span>
+                <div>${p.name}</div>
+            </div>
+            <span class="material-symbols-outlined" style="color: var(--md-sys-color-error);">delete</span>
+        </div>
+    `).join('');
+
+    const content = `
+        <p style="margin-bottom: 12px; color: var(--md-sys-color-on-surface-variant);">Vyberte profil ke smazání (aktivní profil nelze smazat):</p>
+        ${profileList}
+        <button class="button text-button full" onclick="closeCustomModal()" style="margin-top: 16px;">Zrušit</button>
+    `;
+
+    showCustomModal('Smazat profil', content);
+}
+
+function confirmDeleteProfile(profileId, profileName) {
+    if (confirm(`Opravdu chcete smazat profil "${profileName}"? Tato akce je nevratná a smaže všechna data profilu.`)) {
+        if (typeof ProfileManager === 'undefined') return;
+
+        ProfileManager.deleteProfile(profileId);
+        closeCustomModal();
+        showNotification(`Profil "${profileName}" smazán`);
+        renderSettings();
+    }
+}
+
+// Custom modal helpers
+function showCustomModal(title, content) {
+    // Remove existing modal if any
+    closeCustomModal();
+
+    const modal = document.createElement('div');
+    modal.id = 'customModal';
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3 style="margin-bottom: 16px;">${title}</h3>
+            ${content}
+        </div>
+    `;
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeCustomModal();
+    });
+    document.body.appendChild(modal);
+}
+
+function closeCustomModal() {
+    const modal = document.getElementById('customModal');
+    if (modal) modal.remove();
 }
 
 // === HELPER FUNCTIONS ===
