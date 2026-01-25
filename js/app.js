@@ -1262,7 +1262,7 @@ function renderSettings() {
                 <div class="settings-item" onclick="checkForUpdate()">
                     <div>
                         <div>Zkontrolovat aktualizace</div>
-                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Verze: 1.7.0</div>
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Verze: ${typeof APP_VERSION !== 'undefined' ? APP_VERSION : '1.8.0'}</div>
                     </div>
                     <span class="material-symbols-outlined">system_update</span>
                 </div>
@@ -1780,6 +1780,8 @@ async function restoreFromCloud() {
 }
 
 // === APP UPDATE FUNCTIONS ===
+const APP_VERSION = '1.8.0';
+
 async function checkForUpdate() {
     showNotification('Kontroluji aktualizace...');
 
@@ -1789,63 +1791,70 @@ async function checkForUpdate() {
     }
 
     try {
-        const registration = await navigator.serviceWorker.getRegistration();
+        // First, try to get the remote version by fetching sw.js directly from server
+        // We need to bypass cache completely
+        const serverVersion = await getServerVersion();
 
-        if (!registration) {
-            showNotification('Service Worker není registrován');
+        if (serverVersion && serverVersion !== APP_VERSION) {
+            // New version available on server
+            if (confirm(`Nová verze ${serverVersion} je dostupná (aktuální: ${APP_VERSION}). Chcete aktualizovat?`)) {
+                await forceUpdate();
+            }
             return;
         }
 
-        // Force check for updates
-        await registration.update();
+        // Also check if there's a waiting service worker
+        const registration = await navigator.serviceWorker.getRegistration();
 
-        // Wait a moment for the update check to complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (registration) {
+            // Force the browser to check for SW updates
+            await registration.update();
 
-        // Check all possible states for a new version
-        const newWorker = registration.waiting || registration.installing;
+            // Wait for potential update
+            await new Promise(resolve => setTimeout(resolve, 1500));
 
-        if (newWorker) {
-            if (confirm('Je dostupná nová verze aplikace. Chcete ji nainstalovat nyní?')) {
-                // Listen for the new service worker to become active
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'activated') {
-                        window.location.reload();
-                    }
-                });
-
-                // Tell the waiting service worker to skip waiting
-                if (registration.waiting) {
+            if (registration.waiting) {
+                if (confirm('Je dostupná nová verze. Chcete ji nainstalovat?')) {
+                    // Activate the new service worker
                     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                }
 
-                // If it's installing, wait for it
-                if (registration.installing) {
-                    showNotification('Instaluji aktualizaci...');
+                    // Wait and reload
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    window.location.href = window.location.href;
                 }
-            }
-        } else {
-            // Try fetching the SW file directly to compare
-            try {
-                const response = await fetch('/sw.js?check=' + Date.now(), { cache: 'no-store' });
-                const text = await response.text();
-                const versionMatch = text.match(/APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
-                const currentVersion = '1.7.0';
-
-                if (versionMatch && versionMatch[1] !== currentVersion) {
-                    if (confirm(`Nová verze ${versionMatch[1]} je dostupná. Chcete aktualizovat?`)) {
-                        await forceUpdate();
-                    }
-                } else {
-                    showNotification('Aplikace je aktuální (v' + currentVersion + ')');
-                }
-            } catch {
-                showNotification('Aplikace je aktuální');
+                return;
             }
         }
+
+        showNotification(`Aplikace je aktuální (v${APP_VERSION})`);
+
     } catch (error) {
         console.error('Update check failed:', error);
-        showNotification('Chyba při kontrole aktualizací');
+        showNotification('Nelze zkontrolovat aktualizace');
+    }
+}
+
+async function getServerVersion() {
+    try {
+        // Fetch sw.js with cache-busting and no-store to bypass all caches
+        const response = await fetch('/sw.js?v=' + Date.now() + '&nocache=' + Math.random(), {
+            method: 'GET',
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
+        });
+
+        if (!response.ok) return null;
+
+        const text = await response.text();
+        const match = text.match(/APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+
+        return match ? match[1] : null;
+    } catch (error) {
+        console.error('Failed to get server version:', error);
+        return null;
     }
 }
 
@@ -1853,28 +1862,39 @@ async function forceUpdate() {
     showNotification('Aktualizuji aplikaci...');
 
     try {
-        // Clear all caches
+        // 1. Clear all caches
         if ('caches' in window) {
             const cacheNames = await caches.keys();
-            await Promise.all(cacheNames.map(name => caches.delete(name)));
-            console.log('Cache cleared:', cacheNames);
+            for (const name of cacheNames) {
+                await caches.delete(name);
+                console.log('Deleted cache:', name);
+            }
         }
 
-        // Unregister all service workers
+        // 2. Unregister all service workers
         if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(registrations.map(reg => reg.unregister()));
-            console.log('Service workers unregistered:', registrations.length);
+            for (const reg of registrations) {
+                await reg.unregister();
+                console.log('Unregistered SW');
+            }
         }
 
-        // Small delay to ensure everything is cleaned up
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 3. Clear any stored version info
+        localStorage.removeItem('appVersion');
 
-        // Reload page
-        window.location.reload(true);
+        // 4. Wait for cleanup
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // 5. Force reload - using location.href for better PWA compatibility
+        // Adding a cache-busting parameter
+        const url = new URL(window.location.href);
+        url.searchParams.set('_refresh', Date.now());
+        window.location.href = url.toString();
+
     } catch (error) {
         console.error('Force update failed:', error);
-        showNotification('Chyba při aktualizaci');
+        showNotification('Chyba při aktualizaci - zkuste zavřít a znovu otevřít aplikaci');
     }
 }
 
