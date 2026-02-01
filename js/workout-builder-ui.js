@@ -919,7 +919,7 @@ function render1RMProgressTab() {
             ` : `
                 <div class="form-group" style="margin-bottom: var(--spacing-lg);">
                     <label class="form-label">Vyberte cvik</label>
-                    <select id="exercise1RMSelect" class="text-field" onchange="show1RMChart(this.value)">
+                    <select id="exercise1RMSelect" class="text-field">
                         <option value="">-- Vyberte cvik --</option>
                         ${exerciseList.map(name => `<option value="${name}">${name}</option>`).join('')}
                     </select>

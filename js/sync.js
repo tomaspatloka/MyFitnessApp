@@ -5,8 +5,16 @@ const CloudSync = {
     // API endpoint (will be same domain on Cloudflare Pages)
     apiUrl: '/api/sync',
 
-    // Get or create user ID
+    // Get user ID from active profile
     getUserId() {
+        // First try to get from active profile
+        if (typeof ProfileManager !== 'undefined') {
+            const activeProfile = ProfileManager.getActiveProfile();
+            if (activeProfile && activeProfile.syncId) {
+                return activeProfile.syncId;
+            }
+        }
+        // Fallback to legacy storage
         let userId = localStorage.getItem('fitnessUserId');
         if (!userId) {
             userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -87,14 +95,59 @@ const CloudSync = {
 
     // Merge cloud data with local (cloud wins for conflicts)
     mergeData(cloudData) {
-        if (!cloudData) return false;
+        if (!cloudData || typeof cloudData !== 'object') return false;
 
         // Remove internal sync fields
         delete cloudData._lastSync;
         delete cloudData._deviceInfo;
 
-        // Merge - cloud data takes precedence
-        Object.assign(AppState, cloudData);
+        // Validate critical data types before merge
+        const validatedData = {};
+
+        // Validate currentWeek (1-12)
+        if (typeof cloudData.currentWeek === 'number' && cloudData.currentWeek >= 1 && cloudData.currentWeek <= 12) {
+            validatedData.currentWeek = cloudData.currentWeek;
+        }
+
+        // Validate userData object
+        if (cloudData.userData && typeof cloudData.userData === 'object') {
+            validatedData.userData = {
+                weight: typeof cloudData.userData.weight === 'number' ? cloudData.userData.weight : AppState.userData.weight,
+                height: typeof cloudData.userData.height === 'number' ? cloudData.userData.height : AppState.userData.height,
+                age: typeof cloudData.userData.age === 'number' ? cloudData.userData.age : AppState.userData.age,
+                targetWeight: typeof cloudData.userData.targetWeight === 'number' ? cloudData.userData.targetWeight : AppState.userData.targetWeight
+            };
+        }
+
+        // Validate completionData object
+        if (cloudData.completionData && typeof cloudData.completionData === 'object') {
+            validatedData.completionData = cloudData.completionData;
+        }
+
+        // Validate weightLogs array
+        if (Array.isArray(cloudData.weightLogs)) {
+            validatedData.weightLogs = cloudData.weightLogs.filter(log =>
+                log && typeof log.date === 'string' && typeof log.weight === 'number'
+            );
+        }
+
+        // Validate testResults array
+        if (Array.isArray(cloudData.testResults)) {
+            validatedData.testResults = cloudData.testResults;
+        }
+
+        // Validate settings object
+        if (cloudData.settings && typeof cloudData.settings === 'object') {
+            validatedData.settings = { ...AppState.settings, ...cloudData.settings };
+        }
+
+        // Validate currentTab
+        if (typeof cloudData.currentTab === 'string') {
+            validatedData.currentTab = cloudData.currentTab;
+        }
+
+        // Merge validated data
+        Object.assign(AppState, validatedData);
         saveData();
 
         return true;
@@ -142,9 +195,20 @@ const CloudSync = {
         }
     },
 
-    // Set user ID (for restore)
+    // Set user ID (for restore) - updates active profile's syncId
     setUserId(newId) {
         if (newId && newId.startsWith('user_')) {
+            // Update in active profile if ProfileManager exists
+            if (typeof ProfileManager !== 'undefined') {
+                const profiles = ProfileManager.getProfiles();
+                const activeId = ProfileManager.getActiveProfileId();
+                const profile = profiles.find(p => p.id === activeId);
+                if (profile) {
+                    profile.syncId = newId;
+                    ProfileManager.saveProfiles(profiles);
+                }
+            }
+            // Also save to legacy storage for compatibility
             localStorage.setItem('fitnessUserId', newId);
             return true;
         }

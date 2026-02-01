@@ -616,6 +616,18 @@ function renderContent(tabName) {
                 const content = renderWorkoutBuilder();
                 console.log('Rendered content length:', content.length);
                 document.getElementById('mainContent').innerHTML = content;
+
+                // Attach event listeners after DOM is ready
+                setTimeout(() => {
+                    const exercise1RMSelect = document.getElementById('exercise1RMSelect');
+                    if (exercise1RMSelect) {
+                        exercise1RMSelect.addEventListener('change', function() {
+                            if (typeof show1RMChart !== 'undefined') {
+                                show1RMChart(this.value);
+                            }
+                        });
+                    }
+                }, 0);
             } else {
                 console.error('renderWorkoutBuilder is not defined!');
                 document.getElementById('mainContent').innerHTML = '<div class="card"><p>Workout Builder se načítá...</p></div>';

@@ -64,8 +64,20 @@ const NotificationSystem = {
         console.log('NotificationSystem initialized');
     },
 
+    // Get storage key for current profile
+    getStorageKey() {
+        if (typeof ProfileManager !== 'undefined') {
+            const activeId = ProfileManager.getActiveProfileId();
+            if (activeId) {
+                return `notificationSettings_${activeId}`;
+            }
+        }
+        return 'notificationSettings';
+    },
+
     loadSettings() {
-        const saved = localStorage.getItem('notificationSettings');
+        const key = this.getStorageKey();
+        const saved = localStorage.getItem(key);
         if (saved) {
             this.settings = { ...this.defaultSettings, ...JSON.parse(saved) };
         } else {
@@ -74,7 +86,8 @@ const NotificationSystem = {
     },
 
     saveSettings() {
-        localStorage.setItem('notificationSettings', JSON.stringify(this.settings));
+        const key = this.getStorageKey();
+        localStorage.setItem(key, JSON.stringify(this.settings));
     },
 
     // === PERMISSION HANDLING ===
