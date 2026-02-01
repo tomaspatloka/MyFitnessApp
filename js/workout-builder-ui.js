@@ -959,31 +959,47 @@ function render1RMProgressTab() {
 }
 
 function show1RMChart(exerciseName) {
+    const container = document.getElementById('1rmChartContainer');
+    if (!container) return;
+
     if (!exerciseName) {
-        document.getElementById('1rmChartContainer').style.display = 'none';
+        container.style.display = 'none';
         return;
     }
 
     const wb = window.WorkoutBuilderInstance;
+    if (!wb) return;
+
     const progress = wb.get1RMProgress(exerciseName);
     const pr = wb.getPR(exerciseName);
 
     if (progress.length === 0) return;
 
-    document.getElementById('1rmChartContainer').style.display = 'block';
-    document.getElementById('selectedExerciseName').textContent = exerciseName;
+    container.style.display = 'block';
+
+    const nameEl = document.getElementById('selectedExerciseName');
+    if (nameEl) nameEl.textContent = exerciseName;
 
     // Calculate stats
     const current = progress[progress.length - 1];
     const first = progress[0];
     const totalProgress = ((current.estimated1RM - first.estimated1RM) / first.estimated1RM * 100).toFixed(1);
 
-    document.getElementById('current1RM').textContent = `${current.estimated1RM.toFixed(1)} kg`;
-    document.getElementById('pr1RM').textContent = `${pr.estimated1RM.toFixed(1)} kg`;
-    document.getElementById('progress1RM').textContent = `+${totalProgress}%`;
+    const current1RMEl = document.getElementById('current1RM');
+    const pr1RMEl = document.getElementById('pr1RM');
+    const progress1RMEl = document.getElementById('progress1RM');
+
+    if (current1RMEl) current1RMEl.textContent = `${current.estimated1RM.toFixed(1)} kg`;
+    if (pr1RMEl) pr1RMEl.textContent = `${pr.estimated1RM.toFixed(1)} kg`;
+    if (progress1RMEl) progress1RMEl.textContent = `+${totalProgress}%`;
 
     // Render chart
     const ctx = document.getElementById('1rmChart');
+    if (!ctx) {
+        console.error('Chart canvas not found');
+        return;
+    }
+
     if (window.oneRMChartInstance) {
         window.oneRMChartInstance.destroy();
     }
@@ -994,6 +1010,11 @@ function show1RMChart(exerciseName) {
     });
 
     const data = progress.map(p => p.estimated1RM);
+
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not loaded');
+        return;
+    }
 
     window.oneRMChartInstance = new Chart(ctx, {
         type: 'line',
@@ -1041,6 +1062,11 @@ function show1RMChart(exerciseName) {
 
     // Weight recommendations
     const recommendationsContainer = document.getElementById('weightRecommendations');
+    if (!recommendationsContainer) {
+        console.error('Weight recommendations container not found');
+        return;
+    }
+
     const repRanges = [
         { reps: 1, label: '1RM', color: '#d32f2f' },
         { reps: 3, label: '3RM', color: '#f57c00' },
