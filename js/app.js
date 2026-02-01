@@ -1195,6 +1195,13 @@ function renderWeightLineChart(weightHistory) {
 }
 
 function renderSettings() {
+    // Use new accordion-based settings if available
+    if (typeof renderSettingsAccordion === 'function') {
+        renderSettingsAccordion();
+        return;
+    }
+
+    // Fallback to old version
     const activeProfile = typeof ProfileManager !== 'undefined' ? ProfileManager.getActiveProfile() : null;
     const profiles = typeof ProfileManager !== 'undefined' ? ProfileManager.getProfiles() : [];
 
