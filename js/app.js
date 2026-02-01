@@ -603,6 +603,13 @@ function renderContent(tabName) {
         case 'achievements':
             renderAchievements();
             break;
+        case 'workouts':
+            if (typeof renderWorkoutBuilder !== 'undefined') {
+                document.getElementById('mainContent').innerHTML = renderWorkoutBuilder();
+            } else {
+                document.getElementById('mainContent').innerHTML = '<div class="card"><p>Workout Builder se načítá...</p></div>';
+            }
+            break;
         case 'settings':
             renderSettings();
             break;
