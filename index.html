@@ -29,6 +29,10 @@
     <link rel="stylesheet" href="css/notifications.css">
     <!-- Exercise Editor Styles -->
     <link rel="stylesheet" href="css/exercises.css">
+    <!-- Achievements Styles -->
+    <link rel="stylesheet" href="css/achievements.css">
+    <!-- Body Measurements Styles -->
+    <link rel="stylesheet" href="css/body-measurements.css">
 </head>
 
 <body>
@@ -67,6 +71,10 @@
                 <button class="tab" onclick="switchTab('progress', event)">
                     <span class="material-symbols-outlined">monitoring</span>
                     <span class="tab-label">Progres</span>
+                </button>
+                <button class="tab" onclick="switchTab('achievements', event)">
+                    <span class="material-symbols-outlined">emoji_events</span>
+                    <span class="tab-label">Achievementy</span>
                 </button>
                 <button class="tab" onclick="switchTab('settings', event)">
                     <span class="material-symbols-outlined">settings</span>
@@ -133,6 +141,50 @@
             </div>
         </div>
 
+        <!-- Body Measurements Modal -->
+        <div class="modal" id="measurementsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span class="material-symbols-outlined modal-icon">straighten</span>
+                    <h3>Tělesná měření</h3>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Datum měření</label>
+                    <input type="date" id="measurementDate" class="text-field">
+                </div>
+                <div class="measurement-input-grid">
+                    <div class="form-group">
+                        <label class="form-label">Obvod pasu (cm)</label>
+                        <input type="number" id="measurementWaist" class="text-field" step="0.1" placeholder="např. 95.5">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Obvod boků (cm)</label>
+                        <input type="number" id="measurementHips" class="text-field" step="0.1" placeholder="např. 105.0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Obvod krku (cm)</label>
+                        <input type="number" id="measurementNeck" class="text-field" step="0.1" placeholder="např. 40.0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Obvod hrudníku (cm) <small style="opacity: 0.7;">volitelné</small></label>
+                        <input type="number" id="measurementChest" class="text-field" step="0.1" placeholder="např. 110.0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Obvod paže (cm) <small style="opacity: 0.7;">volitelné</small></label>
+                        <input type="number" id="measurementArms" class="text-field" step="0.1" placeholder="např. 35.0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Obvod stehna (cm) <small style="opacity: 0.7;">volitelné</small></label>
+                        <input type="number" id="measurementThighs" class="text-field" step="0.1" placeholder="např. 60.0">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="button text-button" onclick="closeModal('measurementsModal')">Zrušit</button>
+                    <button class="button filled-button" onclick="saveBodyMeasurement()">Uložit</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Notification -->
         <div id="notification" class="notification">
             <span class="material-symbols-outlined notification-icon">info</span>
@@ -144,6 +196,8 @@
     </div>
 
     <!-- Scripts -->
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Načítáme data jako první -->
     <script src="js/data.js"></script>
     <!-- Profile Manager - must load before app.js -->
@@ -156,6 +210,12 @@
     <script src="js/notifications.js"></script>
     <!-- Exercise Manager -->
     <script src="js/exercises.js"></script>
+    <!-- Achievement System -->
+    <script src="js/achievements.js"></script>
+    <!-- Body Measurements System -->
+    <script src="js/body-measurements.js"></script>
+    <!-- Body Measurements UI -->
+    <script src="js/body-measurements-ui.js"></script></script>
 
     <script>
         // Registrace Service Workeru

@@ -600,6 +600,9 @@ function renderContent(tabName) {
         case 'progress':
             renderProgress();
             break;
+        case 'achievements':
+            renderAchievements();
+            break;
         case 'settings':
             renderSettings();
             break;
@@ -961,8 +964,8 @@ function renderProgress() {
             
             <div style="margin-top: var(--spacing-lg);">
                 <h3 style="font-weight: 500; margin-bottom: var(--spacing-sm);">Historie váhy</h3>
-                <div class="chart-container">
-                    ${renderWeightLineChart(weightHistory)}
+                <div class="chart-container" style="position: relative; height: 250px;">
+                    <canvas id="weightChart"></canvas>
                 </div>
             </div>
         </div>
@@ -1027,9 +1030,84 @@ function renderProgress() {
                 ${renderMilestone(pushupsScore >= 16, 'looks_3', '16 kliků za 30s', 16 - pushupsScore, 'kliků')}
             </div>
         </div>
+
+        ${typeof renderBodyMeasurementsSection !== 'undefined' ? renderBodyMeasurementsSection() : ''}
     `;
 
     document.getElementById('mainContent').innerHTML = content;
+
+    // Render Chart.js weight chart
+    if (typeof Chart !== 'undefined' && weightHistory.length > 0) {
+        setTimeout(() => renderWeightChart(weightHistory), 100);
+    }
+
+    // Render measurement charts
+    if (typeof renderMeasurementChartsJS !== 'undefined') {
+        setTimeout(() => renderMeasurementChartsJS(), 200);
+    }
+}
+
+function renderWeightChart(weightHistory) {
+    const ctx = document.getElementById('weightChart');
+    if (!ctx) return;
+
+    const labels = weightHistory.map(entry => {
+        const date = new Date(entry.date);
+        return `${date.getDate()}.${date.getMonth() + 1}`;
+    });
+
+    const data = weightHistory.map(entry => entry.weight);
+
+    // Destroy existing chart if it exists
+    if (window.weightChartInstance) {
+        window.weightChartInstance.destroy();
+    }
+
+    window.weightChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Váha (kg)',
+                data: data,
+                borderColor: 'rgb(26, 35, 126)',
+                backgroundColor: 'rgba(26, 35, 126, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: 'rgb(26, 35, 126)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.parsed.y.toFixed(1) + ' kg';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(1) + ' kg';
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 function renderMilestone(isDone, iconName, title, remaining, unit = 'kg') {
@@ -1442,6 +1520,10 @@ function toggleExercise(exerciseId, dayId) {
                         if (typeof NotificationSystem !== 'undefined') {
                             NotificationSystem.notifyDayComplete();
                         }
+                        // Check for new achievements
+                        if (typeof AchievementSystem !== 'undefined') {
+                            setTimeout(() => AchievementSystem.checkForNewAchievements(), 1000);
+                        }
                     }
                 }
             }
@@ -1470,6 +1552,10 @@ function markAllToday() {
             fireConfetti();
             if (typeof NotificationSystem !== 'undefined') {
                 NotificationSystem.notifyDayComplete();
+            }
+            // Check for new achievements
+            if (typeof AchievementSystem !== 'undefined') {
+                setTimeout(() => AchievementSystem.checkForNewAchievements(), 1000);
             }
         }
         saveData();
@@ -1534,6 +1620,10 @@ function saveWeight() {
     showNotification(`Váha ${weight}kg uložena`);
     if (typeof NotificationSystem !== 'undefined') {
         NotificationSystem.notifyWeightLogged(weight);
+    }
+    // Check for new achievements
+    if (typeof AchievementSystem !== 'undefined') {
+        setTimeout(() => AchievementSystem.checkForNewAchievements(), 500);
     }
     if (AppState.currentTab === 'progress' || AppState.currentTab === 'dashboard') {
         renderContent(AppState.currentTab);
@@ -2153,6 +2243,97 @@ function closeCustomModal() {
     if (modal) modal.remove();
 }
 
+// === ACHIEVEMENTS TAB ===
+function renderAchievements() {
+    if (typeof AchievementSystem === 'undefined') {
+        document.getElementById('mainContent').innerHTML = `
+            <div class="card">
+                <h2>Systém achievementů se načítá...</h2>
+            </div>
+        `;
+        return;
+    }
+
+    // Initialize and check for new achievements
+    AchievementSystem.init();
+    const newAchievements = AchievementSystem.checkForNewAchievements();
+
+    // Get player stats
+    const level = AchievementSystem.getPlayerLevel();
+    const points = AchievementSystem.getTotalPoints();
+    const progress = AchievementSystem.getProgressToNextLevel();
+    const stats = AchievementSystem.getPlayerStats();
+    const streak = stats.currentStreak;
+
+    const content = `
+        <div class="achievements-header">
+            <h2>Achievementy a odznaky</h2>
+            <p>Sbírej achievementy a dostávej body za své úspěchy</p>
+        </div>
+
+        <!-- Player Stats Card -->
+        <div class="player-stats-card">
+            <div class="player-level">
+                <div class="player-level-icon">${level.icon}</div>
+                <div class="player-level-info">
+                    <h2>${level.name}</h2>
+                    <p>Level ${level.level} • ${points} bodů</p>
+                </div>
+            </div>
+
+            ${progress.progress < 100 ? `
+                <div class="level-progress">
+                    <div class="level-progress-label">
+                        <span>Progres k dalšímu levelu</span>
+                        <span>${progress.current} / ${progress.needed} bodů</span>
+                    </div>
+                    <div class="level-progress-bar">
+                        <div class="level-progress-fill" style="width: ${progress.progress}%"></div>
+                    </div>
+                </div>
+            ` : '<p style="text-align: center; margin-top: 12px; opacity: 0.9;">🎉 Dosáhl jsi maximálního levelu!</p>'}
+        </div>
+
+        <!-- Streak Card -->
+        <div class="streak-card ${streak > 0 ? 'active' : ''}">
+            <div class="streak-icon">${streak > 0 ? '🔥' : '💤'}</div>
+            <div class="streak-number">${streak}</div>
+            <div class="streak-label">
+                ${streak > 0 ? (streak === 1 ? 'den v řadě' : streak < 5 ? 'dny v řadě' : 'dní v řadě') : 'Začni cvičit'}
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats-grid">
+            <div class="stat-card-small">
+                <div class="stat-icon">💪</div>
+                <div class="stat-value">${stats.totalWorkouts}</div>
+                <div class="stat-label">Tréninků</div>
+            </div>
+            <div class="stat-card-small">
+                <div class="stat-icon">✨</div>
+                <div class="stat-value">${stats.perfectWeeks}</div>
+                <div class="stat-label">Perfektní týdny</div>
+            </div>
+            <div class="stat-card-small">
+                <div class="stat-icon">📉</div>
+                <div class="stat-value">${stats.weightLost.toFixed(1)}</div>
+                <div class="stat-label">Kg shozeno</div>
+            </div>
+            <div class="stat-card-small">
+                <div class="stat-icon">🌅</div>
+                <div class="stat-value">${stats.morningWorkouts}</div>
+                <div class="stat-label">Ranních tréninků</div>
+            </div>
+        </div>
+
+        <!-- Achievements List -->
+        ${AchievementSystem.renderAchievementsList()}
+    `;
+
+    document.getElementById('mainContent').innerHTML = content;
+}
+
 // === HELPER FUNCTIONS ===
 function showNotification(message) {
     const notification = document.getElementById('notification');
@@ -2167,6 +2348,15 @@ function showNotification(message) {
 
 function saveData() {
     try {
+        // Save to profile-specific key if profile system is available
+        if (typeof ProfileManager !== 'undefined') {
+            const activeId = ProfileManager.getActiveProfileId();
+            if (activeId) {
+                localStorage.setItem(`fitnessAppData_${activeId}`, JSON.stringify(AppState));
+                return;
+            }
+        }
+        // Fallback to global key (legacy or no profile)
         localStorage.setItem('fitnessAppData', JSON.stringify(AppState));
     } catch (e) {
         console.error('Chyba při ukládání dat:', e);
