@@ -47,6 +47,9 @@
                     <h1 class="app-title">Můj Trénink</h1>
                 </div>
                 <div class="app-actions">
+                    <button class="icon-button" onclick="switchTab('settings', event)" title="Nastavení">
+                        <span class="material-symbols-outlined">settings</span>
+                    </button>
                     <button id="installBtn" class="icon-button" style="display: none;" onclick="installApp()"
                         title="Nainstalovat">
                         <span class="material-symbols-outlined">install_mobile</span>
@@ -80,11 +83,7 @@
                 </button>
                 <button class="tab" onclick="switchTab('workouts', event)">
                     <span class="material-symbols-outlined">sports_gymnastics</span>
-                    <span class="tab-label">Workout Builder</span>
-                </button>
-                <button class="tab" onclick="switchTab('settings', event)">
-                    <span class="material-symbols-outlined">settings</span>
-                    <span class="tab-label">Nastavení</span>
+                    <span class="tab-label">Workouty</span>
                 </button>
             </div>
         </nav>

@@ -23,6 +23,14 @@ function renderWorkoutBuilder() {
                     <span class="material-symbols-outlined">history</span>
                     Historie
                 </button>
+                <button class="workout-tab" onclick="switchWorkoutTab('progress')">
+                    <span class="material-symbols-outlined">trending_up</span>
+                    Pokrok
+                </button>
+                <button class="workout-tab" onclick="switchWorkoutTab('timers')">
+                    <span class="material-symbols-outlined">timer</span>
+                    Timery
+                </button>
             </div>
 
             <!-- My Workouts Tab -->
@@ -70,6 +78,16 @@ function renderWorkoutBuilder() {
             <!-- History Tab -->
             <div id="history-tab" class="workout-tab-content">
                 ${renderWorkoutHistoryTab()}
+            </div>
+
+            <!-- Progress Tab -->
+            <div id="progress-tab" class="workout-tab-content">
+                ${render1RMProgressTab()}
+            </div>
+
+            <!-- Timers Tab -->
+            <div id="timers-tab" class="workout-tab-content">
+                ${renderTimersTab()}
             </div>
         </div>
     `;
@@ -441,11 +459,43 @@ function cancelWorkoutConfirm() {
 
 function finishWorkoutSession() {
     const wb = window.WorkoutBuilderInstance;
+    const session = wb.activeWorkout;
+
+    // Calculate workout stats
+    const duration = Math.round((Date.now() - session.startTime) / 1000);
+    const durationMins = Math.floor(duration / 60);
+    const completedExercises = session.exercises.filter(ex => ex.completedSets.length > 0).length;
+    const totalSets = session.exercises.reduce((sum, ex) => sum + ex.completedSets.length, 0);
+
     const notes = prompt('Poznámky k tréninku (volitelné):');
+    const completedSession = wb.finishWorkout(notes || '');
 
-    const session = wb.finishWorkout(notes || '');
+    // Show completion notification with stats
+    const stats = `⏱️ ${durationMins} min | 💪 ${completedExercises} cviků | 📊 ${totalSets} sérií`;
+    showNotification(`Gratulujeme! Trénink dokončen! 🎉\n${stats}`);
 
-    showNotification('Gratulujeme! Trénink dokončen! 🎉');
+    // Browser notification if supported
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Trénink dokončen! 🎉', {
+            body: `${session.workout.name}\n${stats}`,
+            icon: '/icons/icon-128.png',
+            badge: '/icons/icon-128.png'
+        });
+    } else if ('Notification' in window && Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                new Notification('Trénink dokončen! 🎉', {
+                    body: `${session.workout.name}\n${stats}`,
+                    icon: '/icons/icon-128.png'
+                });
+            }
+        });
+    }
+
+    // Vibration pattern for completion
+    if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+    }
 
     // Check for achievements
     if (typeof checkForNewAchievements !== 'undefined') {
@@ -627,11 +677,611 @@ function formatDate(date) {
 }
 
 function showSessionDetails(sessionId) {
-    // TODO: Implement session details modal
-    showNotification('Detail tréninku (coming soon)');
+    const wb = window.WorkoutBuilderInstance;
+    const session = wb.workoutHistory.find(s => s.id === sessionId);
+
+    if (!session) {
+        showNotification('Trénink nenalezen');
+        return;
+    }
+
+    const date = new Date(session.date);
+    const duration = formatDuration(session.duration);
+
+    const modal = `
+        <div class="modal active" id="sessionDetailsModal">
+            <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <span class="material-symbols-outlined modal-icon">fitness_center</span>
+                    <h3>${session.workoutName}</h3>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Datum</div>
+                        <div style="font-weight: 600;">${formatDate(date)}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Doba trvání</div>
+                        <div style="font-weight: 600;">${duration}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant);">Celkem sérií</div>
+                        <div style="font-weight: 600;">${session.totalSets}</div>
+                    </div>
+                </div>
+
+                ${session.notes ? `
+                    <div style="background: var(--md-sys-color-surface-variant); padding: var(--spacing-md); border-radius: var(--radius-md); margin-bottom: var(--spacing-lg);">
+                        <div style="font-size: 0.75rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 4px;">Poznámky</div>
+                        <div>${session.notes}</div>
+                    </div>
+                ` : ''}
+
+                <h4 style="margin-bottom: var(--spacing-md);">Cviky</h4>
+                ${session.exercises.map(ex => `
+                    <div style="background: var(--md-sys-color-surface-container-low); padding: var(--spacing-md); border-radius: var(--radius-md); margin-bottom: var(--spacing-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
+                            <strong>${ex.name}</strong>
+                            ${ex.skipped ? '<span style="color: var(--md-sys-color-error); font-size: 0.75rem;">Přeskočeno</span>' : ''}
+                        </div>
+                        ${!ex.skipped && ex.completedSets.length > 0 ? `
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                ${ex.completedSets.map((set, index) => `
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.875rem; padding: 4px 0; border-bottom: 1px solid var(--md-sys-color-outline-variant);">
+                                        <span>Série ${index + 1}</span>
+                                        <span>${set.reps} opakování${set.weight > 0 ? ` × ${set.weight}kg` : ''}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<div style="font-size: 0.875rem; color: var(--md-sys-color-on-surface-variant); font-style: italic;">Žádné série</div>'}
+                    </div>
+                `).join('')}
+
+                <div class="modal-actions">
+                    <button class="button filled-button full" onclick="closeSessionDetailsModal()">Zavřít</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modal);
+}
+
+function closeSessionDetailsModal() {
+    const modal = document.getElementById('sessionDetailsModal');
+    if (modal) modal.remove();
 }
 
 function editWorkout(workoutId) {
-    // TODO: Implement workout editing
-    showNotification('Úprava tréninku (coming soon)');
+    const wb = window.WorkoutBuilderInstance;
+    const workout = wb.customWorkouts.find(w => w.id === workoutId);
+
+    if (!workout) {
+        showNotification('Trénink nenalezen');
+        return;
+    }
+
+    const modal = `
+        <div class="modal active" id="editWorkoutModal">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <span class="material-symbols-outlined modal-icon">edit</span>
+                    <h3>Upravit trénink</h3>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Název tréninku</label>
+                    <input type="text" id="editWorkoutName" class="text-field" value="${workout.name}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Kategorie</label>
+                    <select id="editWorkoutCategory" class="text-field">
+                        <option value="custom" ${workout.category === 'custom' ? 'selected' : ''}>Vlastní</option>
+                        <option value="strength" ${workout.category === 'strength' ? 'selected' : ''}>Síla</option>
+                        <option value="cardio" ${workout.category === 'cardio' ? 'selected' : ''}>Kardio</option>
+                        <option value="core" ${workout.category === 'core' ? 'selected' : ''}>Core</option>
+                        <option value="flexibility" ${workout.category === 'flexibility' ? 'selected' : ''}>Flexibilita</option>
+                    </select>
+                </div>
+
+                <div id="editExercisesContainer">
+                    <h4 style="margin-bottom: var(--spacing-sm);">Cviky</h4>
+                    <div id="editExercisesList"></div>
+                    <button class="button text-button full" onclick="addEditExerciseRow()">
+                        <span class="material-symbols-outlined">add</span>
+                        Přidat cvik
+                    </button>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="button text-button" onclick="closeEditWorkoutModal()">Zrušit</button>
+                    <button class="button filled-button" onclick="saveEditedWorkout('${workoutId}')">Uložit změny</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modal);
+
+    // Add existing exercises
+    workout.exercises.forEach(exercise => {
+        addEditExerciseRow(exercise);
+    });
+}
+
+function addEditExerciseRow(exercise = null) {
+    const container = document.getElementById('editExercisesList');
+    const index = container.children.length;
+
+    const row = `
+        <div class="exercise-row" data-index="${index}">
+            <input type="text" class="text-field" placeholder="Název cviku" value="${exercise?.name || ''}" data-field="name">
+            <input type="number" class="text-field" placeholder="Série" value="${exercise?.sets || 3}" data-field="sets" style="width: 80px;">
+            <input type="text" class="text-field" placeholder="Opakování" value="${exercise?.reps || '10-12'}" data-field="reps" style="width: 100px;">
+            <input type="number" class="text-field" placeholder="Odpočinek (s)" value="${exercise?.rest || 60}" data-field="rest" style="width: 120px;">
+            <button class="icon-button" onclick="removeEditExerciseRow(${index})" title="Odebrat">
+                <span class="material-symbols-outlined">delete</span>
+            </button>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', row);
+}
+
+function removeEditExerciseRow(index) {
+    const row = document.querySelector(`#editExercisesList .exercise-row[data-index="${index}"]`);
+    if (row) row.remove();
+}
+
+function closeEditWorkoutModal() {
+    const modal = document.getElementById('editWorkoutModal');
+    if (modal) modal.remove();
+}
+
+function saveEditedWorkout(workoutId) {
+    const name = document.getElementById('editWorkoutName').value.trim();
+    const category = document.getElementById('editWorkoutCategory').value;
+
+    if (!name) {
+        showNotification('Zadejte název tréninku');
+        return;
+    }
+
+    const exerciseRows = document.querySelectorAll('#editExercisesList .exercise-row');
+    const exercises = [];
+
+    exerciseRows.forEach(row => {
+        const exerciseName = row.querySelector('[data-field="name"]').value.trim();
+        const sets = parseInt(row.querySelector('[data-field="sets"]').value) || 3;
+        const reps = row.querySelector('[data-field="reps"]').value.trim() || '10';
+        const rest = parseInt(row.querySelector('[data-field="rest"]').value) || 60;
+
+        if (exerciseName) {
+            exercises.push({ name: exerciseName, sets, reps, rest, notes: '' });
+        }
+    });
+
+    if (exercises.length === 0) {
+        showNotification('Přidejte alespoň jeden cvik');
+        return;
+    }
+
+    const wb = window.WorkoutBuilderInstance;
+    wb.updateCustomWorkout(workoutId, { name, category, exercises });
+
+    closeEditWorkoutModal();
+    renderContent('workouts');
+    showNotification('Trénink upraven! ✅');
+}
+
+// === 1RM PROGRESS TAB ===
+function render1RMProgressTab() {
+    const wb = window.WorkoutBuilderInstance;
+
+    // Get all unique exercises with weight data
+    const exercisesWithWeights = new Set();
+    wb.workoutHistory.forEach(session => {
+        session.exercises.forEach(ex => {
+            ex.completedSets.forEach(set => {
+                if (set.weight > 0) {
+                    exercisesWithWeights.add(ex.name);
+                }
+            });
+        });
+    });
+
+    const exerciseList = Array.from(exercisesWithWeights);
+
+    return `
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <span class="material-symbols-outlined">trending_up</span>
+                    Pokrok síly (1RM)
+                </h2>
+            </div>
+
+            ${exerciseList.length === 0 ? `
+                <div class="empty-state">
+                    <span class="material-symbols-outlined" style="font-size: 64px; opacity: 0.3;">trending_up</span>
+                    <p>Zatím nemáte žádná data o vahách</p>
+                    <p style="font-size: 0.875rem; opacity: 0.7;">Začněte zaznamenávat váhy během tréninků</p>
+                </div>
+            ` : `
+                <div class="form-group" style="margin-bottom: var(--spacing-lg);">
+                    <label class="form-label">Vyberte cvik</label>
+                    <select id="exercise1RMSelect" class="text-field" onchange="show1RMChart(this.value)">
+                        <option value="">-- Vyberte cvik --</option>
+                        ${exerciseList.map(name => `<option value="${name}">${name}</option>`).join('')}
+                    </select>
+                </div>
+
+                <div id="1rmChartContainer" style="display: none;">
+                    <h3 style="margin-bottom: var(--spacing-md);" id="selectedExerciseName"></h3>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                        <div class="stat-card">
+                            <div class="stat-label">Aktuální 1RM</div>
+                            <div class="stat-value" id="current1RM">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Osobní rekord</div>
+                            <div class="stat-value" id="pr1RM">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Celkový pokrok</div>
+                            <div class="stat-value" id="progress1RM">-</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container" style="position: relative; height: 300px; margin-bottom: var(--spacing-lg);">
+                        <canvas id="1rmChart"></canvas>
+                    </div>
+
+                    <h4 style="margin-bottom: var(--spacing-sm);">Kalkulačka pracovních vah</h4>
+                    <div class="weight-calculator">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--spacing-sm);" id="weightRecommendations">
+                        </div>
+                    </div>
+                </div>
+            `}
+        </div>
+    `;
+}
+
+function show1RMChart(exerciseName) {
+    if (!exerciseName) {
+        document.getElementById('1rmChartContainer').style.display = 'none';
+        return;
+    }
+
+    const wb = window.WorkoutBuilderInstance;
+    const progress = wb.get1RMProgress(exerciseName);
+    const pr = wb.getPR(exerciseName);
+
+    if (progress.length === 0) return;
+
+    document.getElementById('1rmChartContainer').style.display = 'block';
+    document.getElementById('selectedExerciseName').textContent = exerciseName;
+
+    // Calculate stats
+    const current = progress[progress.length - 1];
+    const first = progress[0];
+    const totalProgress = ((current.estimated1RM - first.estimated1RM) / first.estimated1RM * 100).toFixed(1);
+
+    document.getElementById('current1RM').textContent = `${current.estimated1RM.toFixed(1)} kg`;
+    document.getElementById('pr1RM').textContent = `${pr.estimated1RM.toFixed(1)} kg`;
+    document.getElementById('progress1RM').textContent = `+${totalProgress}%`;
+
+    // Render chart
+    const ctx = document.getElementById('1rmChart');
+    if (window.oneRMChartInstance) {
+        window.oneRMChartInstance.destroy();
+    }
+
+    const labels = progress.map(p => {
+        const date = new Date(p.date);
+        return `${date.getDate()}.${date.getMonth() + 1}`;
+    });
+
+    const data = progress.map(p => p.estimated1RM);
+
+    window.oneRMChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Odhadovaný 1RM (kg)',
+                data: data,
+                borderColor: 'rgb(26, 35, 126)',
+                backgroundColor: 'rgba(26, 35, 126, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: 'rgb(26, 35, 126)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.parsed.y.toFixed(1) + ' kg';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(1) + ' kg';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Weight recommendations
+    const recommendationsContainer = document.getElementById('weightRecommendations');
+    const repRanges = [
+        { reps: 1, label: '1RM', color: '#d32f2f' },
+        { reps: 3, label: '3RM', color: '#f57c00' },
+        { reps: 5, label: '5RM', color: '#fbc02d' },
+        { reps: 8, label: '8RM', color: '#388e3c' },
+        { reps: 10, label: '10RM', color: '#1976d2' },
+        { reps: 12, label: '12RM', color: '#7b1fa2' }
+    ];
+
+    recommendationsContainer.innerHTML = repRanges.map(range => {
+        const weight = wb.calculateWorkingWeight(current.estimated1RM, range.reps);
+        return `
+            <div style="background: ${range.color}15; border-left: 3px solid ${range.color}; padding: var(--spacing-sm); border-radius: var(--radius-sm);">
+                <div style="font-size: 0.75rem; opacity: 0.8;">${range.label}</div>
+                <div style="font-weight: 600; font-size: 1.125rem;">${weight.toFixed(1)} kg</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// === ADVANCED TIMERS TAB ===
+function renderTimersTab() {
+    return `
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <span class="material-symbols-outlined">timer</span>
+                    Pokročilé timery
+                </h2>
+            </div>
+
+            <div class="timers-grid">
+                <!-- Tabata Timer -->
+                <div class="timer-card">
+                    <div class="timer-card-header">
+                        <span class="material-symbols-outlined">whatshot</span>
+                        <h3>Tabata</h3>
+                    </div>
+                    <p class="timer-description">8 kol × (20s práce + 10s odpočinek)</p>
+                    <button class="button filled-button full" onclick="startTabata()">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        Spustit Tabata
+                    </button>
+                </div>
+
+                <!-- EMOM Timer -->
+                <div class="timer-card">
+                    <div class="timer-card-header">
+                        <span class="material-symbols-outlined">schedule</span>
+                        <h3>EMOM</h3>
+                    </div>
+                    <p class="timer-description">Každou minutu na minutu</p>
+                    <div class="form-group" style="margin-bottom: var(--spacing-sm);">
+                        <input type="number" id="emomMinutes" class="text-field" placeholder="Počet minut" value="10" min="1" max="60">
+                    </div>
+                    <button class="button filled-button full" onclick="startEMOM()">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        Spustit EMOM
+                    </button>
+                </div>
+
+                <!-- AMRAP Timer -->
+                <div class="timer-card">
+                    <div class="timer-card-header">
+                        <span class="material-symbols-outlined">all_inclusive</span>
+                        <h3>AMRAP</h3>
+                    </div>
+                    <p class="timer-description">Co nejvíc kol za čas</p>
+                    <div class="form-group" style="margin-bottom: var(--spacing-sm);">
+                        <input type="number" id="amrapMinutes" class="text-field" placeholder="Počet minut" value="15" min="1" max="60">
+                    </div>
+                    <button class="button filled-button full" onclick="startAMRAP()">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        Spustit AMRAP
+                    </button>
+                </div>
+
+                <!-- Custom Interval Timer -->
+                <div class="timer-card">
+                    <div class="timer-card-header">
+                        <span class="material-symbols-outlined">settings</span>
+                        <h3>Vlastní intervaly</h3>
+                    </div>
+                    <p class="timer-description">Nastavte si vlastní interval</p>
+                    <div class="form-group" style="margin-bottom: var(--spacing-xs);">
+                        <input type="number" id="workSeconds" class="text-field" placeholder="Práce (s)" value="30">
+                    </div>
+                    <div class="form-group" style="margin-bottom: var(--spacing-xs);">
+                        <input type="number" id="restSeconds" class="text-field" placeholder="Odpočinek (s)" value="15">
+                    </div>
+                    <div class="form-group" style="margin-bottom: var(--spacing-sm);">
+                        <input type="number" id="intervalRounds" class="text-field" placeholder="Počet kol" value="8">
+                    </div>
+                    <button class="button filled-button full" onclick="startCustomInterval()">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        Spustit intervaly
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timer Modal (hidden by default) -->
+        <div id="timerModal" class="timer-modal" style="display: none;">
+            <div class="timer-modal-content">
+                <button class="timer-close-btn" onclick="closeTimerModal()">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+                <div id="timerDisplay" class="timer-display"></div>
+                <div id="timerStatus" class="timer-status"></div>
+                <div class="timer-controls">
+                    <button class="button text-button" onclick="pauseTimer()">Pauza</button>
+                    <button class="button filled-button" onclick="closeTimerModal()">Ukončit</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Timer functions
+function startTabata() {
+    const wb = window.WorkoutBuilderInstance;
+    showTimerModal();
+
+    wb.startTabataTimer(
+        (workTime, round) => {
+            document.getElementById('timerDisplay').textContent = workTime;
+            document.getElementById('timerStatus').textContent = `Kolo ${round}/8 - PRACUJ! 💪`;
+            document.getElementById('timerDisplay').style.color = 'var(--md-sys-color-primary)';
+        },
+        (restTime, round) => {
+            document.getElementById('timerDisplay').textContent = restTime;
+            document.getElementById('timerStatus').textContent = `Kolo ${round}/8 - Odpočinek`;
+            document.getElementById('timerDisplay').style.color = 'var(--md-sys-color-tertiary)';
+        },
+        (round) => {
+            if ('vibrate' in navigator) navigator.vibrate(200);
+        },
+        () => {
+            document.getElementById('timerStatus').textContent = 'Tabata dokončeno! 🎉';
+            showNotification('Tabata dokončeno! 🔥');
+            if ('vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 200]);
+        }
+    );
+}
+
+function startEMOM() {
+    const minutes = parseInt(document.getElementById('emomMinutes').value) || 10;
+    const wb = window.WorkoutBuilderInstance;
+    showTimerModal();
+
+    wb.startEMOMTimer(
+        minutes,
+        (minute, seconds) => {
+            document.getElementById('timerDisplay').textContent = seconds;
+            document.getElementById('timerStatus').textContent = `Minuta ${minute}/${minutes}`;
+
+            if (seconds === 0) {
+                if ('vibrate' in navigator) navigator.vibrate(200);
+            }
+        },
+        () => {
+            document.getElementById('timerStatus').textContent = 'EMOM dokončeno! 🎉';
+            showNotification('EMOM dokončeno! 💪');
+        }
+    );
+}
+
+function startAMRAP() {
+    const minutes = parseInt(document.getElementById('amrapMinutes').value) || 15;
+    const wb = window.WorkoutBuilderInstance;
+    showTimerModal();
+
+    wb.startAMRAPTimer(
+        minutes,
+        (mins, secs) => {
+            document.getElementById('timerDisplay').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            document.getElementById('timerStatus').textContent = 'AMRAP - Dělej co nejvíc!';
+        },
+        () => {
+            document.getElementById('timerStatus').textContent = 'AMRAP dokončeno! 🎉';
+            showNotification('AMRAP dokončeno! 🔥');
+            if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+        }
+    );
+}
+
+function startCustomInterval() {
+    const workSecs = parseInt(document.getElementById('workSeconds').value) || 30;
+    const restSecs = parseInt(document.getElementById('restSeconds').value) || 15;
+    const rounds = parseInt(document.getElementById('intervalRounds').value) || 8;
+
+    showTimerModal();
+
+    let currentRound = 1;
+
+    const runRound = () => {
+        if (currentRound > rounds) {
+            document.getElementById('timerStatus').textContent = 'Intervaly dokončeny! 🎉';
+            showNotification('Intervaly dokončeny! 💪');
+            return;
+        }
+
+        // Work phase
+        let workTime = workSecs;
+        const workInterval = setInterval(() => {
+            document.getElementById('timerDisplay').textContent = workTime;
+            document.getElementById('timerStatus').textContent = `Kolo ${currentRound}/${rounds} - PRACUJ!`;
+            document.getElementById('timerDisplay').style.color = 'var(--md-sys-color-primary)';
+            workTime--;
+
+            if (workTime < 0) {
+                clearInterval(workInterval);
+
+                // Rest phase
+                let restTime = restSecs;
+                const restInterval = setInterval(() => {
+                    document.getElementById('timerDisplay').textContent = restTime;
+                    document.getElementById('timerStatus').textContent = `Kolo ${currentRound}/${rounds} - Odpočinek`;
+                    document.getElementById('timerDisplay').style.color = 'var(--md-sys-color-tertiary)';
+                    restTime--;
+
+                    if (restTime < 0) {
+                        clearInterval(restInterval);
+                        if ('vibrate' in navigator) navigator.vibrate(200);
+                        currentRound++;
+                        runRound();
+                    }
+                }, 1000);
+            }
+        }, 1000);
+    };
+
+    runRound();
+}
+
+function showTimerModal() {
+    document.getElementById('timerModal').style.display = 'flex';
+}
+
+function closeTimerModal() {
+    document.getElementById('timerModal').style.display = 'none';
+    // Stop any running timers
+    const wb = window.WorkoutBuilderInstance;
+    if (wb.workoutTimer) {
+        wb.stopRestTimer();
+    }
+}
+
+function pauseTimer() {
+    showNotification('Pauza (funkcionalita bude doplněna)');
 }

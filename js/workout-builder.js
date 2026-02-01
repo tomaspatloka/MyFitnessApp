@@ -13,21 +13,25 @@ class WorkoutBuilder {
 
     // === DATA PERSISTENCE ===
     loadCustomWorkouts() {
-        const saved = localStorage.getItem(`customWorkouts_${AppState.currentProfile}`);
+        const profile = (typeof AppState !== 'undefined' && AppState.currentProfile) ? AppState.currentProfile : 'default';
+        const saved = localStorage.getItem(`customWorkouts_${profile}`);
         return saved ? JSON.parse(saved) : [];
     }
 
     saveCustomWorkouts() {
-        localStorage.setItem(`customWorkouts_${AppState.currentProfile}`, JSON.stringify(this.customWorkouts));
+        const profile = (typeof AppState !== 'undefined' && AppState.currentProfile) ? AppState.currentProfile : 'default';
+        localStorage.setItem(`customWorkouts_${profile}`, JSON.stringify(this.customWorkouts));
     }
 
     loadWorkoutHistory() {
-        const saved = localStorage.getItem(`workoutHistory_${AppState.currentProfile}`);
+        const profile = (typeof AppState !== 'undefined' && AppState.currentProfile) ? AppState.currentProfile : 'default';
+        const saved = localStorage.getItem(`workoutHistory_${profile}`);
         return saved ? JSON.parse(saved) : [];
     }
 
     saveWorkoutHistory() {
-        localStorage.setItem(`workoutHistory_${AppState.currentProfile}`, JSON.stringify(this.workoutHistory));
+        const profile = (typeof AppState !== 'undefined' && AppState.currentProfile) ? AppState.currentProfile : 'default';
+        localStorage.setItem(`workoutHistory_${profile}`, JSON.stringify(this.workoutHistory));
     }
 
     // === WORKOUT TEMPLATES ===
@@ -386,6 +390,159 @@ class WorkoutBuilder {
             clearInterval(this.workoutTimer);
             this.workoutTimer = null;
         }
+    }
+
+    // === 1RM CALCULATOR ===
+    // Epley formula: 1RM = weight × (1 + reps/30)
+    calculate1RM(weight, reps) {
+        if (reps === 1) return weight;
+        return Math.round(weight * (1 + reps / 30) * 10) / 10;
+    }
+
+    // Calculate recommended weight for target reps
+    calculateWorkingWeight(oneRepMax, targetReps) {
+        if (targetReps === 1) return oneRepMax;
+        // Inverse of Epley formula
+        return Math.round((oneRepMax / (1 + targetReps / 30)) * 10) / 10;
+    }
+
+    // Get 1RM progress for an exercise
+    get1RMProgress(exerciseName) {
+        const data = [];
+
+        this.workoutHistory.forEach(session => {
+            session.exercises.forEach(ex => {
+                if (ex.name === exerciseName && ex.completedSets.length > 0) {
+                    ex.completedSets.forEach(set => {
+                        if (set.weight > 0) {
+                            const estimated1RM = this.calculate1RM(set.weight, set.reps);
+                            data.push({
+                                date: session.date,
+                                weight: set.weight,
+                                reps: set.reps,
+                                estimated1RM: estimated1RM
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
+        return data.sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
+
+    // Get personal record (best 1RM) for exercise
+    getPR(exerciseName) {
+        const progress = this.get1RMProgress(exerciseName);
+        if (progress.length === 0) return null;
+
+        return progress.reduce((best, current) => {
+            return current.estimated1RM > best.estimated1RM ? current : best;
+        });
+    }
+
+    // === SUPER SETS & CIRCUITS ===
+    createSuperSet(exercises) {
+        return {
+            type: 'superset',
+            exercises: exercises,
+            rest: 90 // Rest after completing all exercises in superset
+        };
+    }
+
+    createCircuit(exercises, rounds) {
+        return {
+            type: 'circuit',
+            exercises: exercises,
+            rounds: rounds,
+            restBetweenExercises: 0,
+            restBetweenRounds: 60
+        };
+    }
+
+    // === ADVANCED TIMERS ===
+    // Tabata: 20s work, 10s rest, 8 rounds
+    startTabataTimer(onWorkTick, onRestTick, onRoundComplete, onComplete) {
+        let round = 1;
+        const totalRounds = 8;
+
+        const runRound = () => {
+            if (round > totalRounds) {
+                onComplete();
+                return;
+            }
+
+            // Work interval (20s)
+            let workTime = 20;
+            const workInterval = setInterval(() => {
+                onWorkTick(workTime, round);
+                workTime--;
+
+                if (workTime < 0) {
+                    clearInterval(workInterval);
+
+                    // Rest interval (10s)
+                    let restTime = 10;
+                    const restInterval = setInterval(() => {
+                        onRestTick(restTime, round);
+                        restTime--;
+
+                        if (restTime < 0) {
+                            clearInterval(restInterval);
+                            onRoundComplete(round);
+                            round++;
+                            runRound();
+                        }
+                    }, 1000);
+                }
+            }, 1000);
+        };
+
+        runRound();
+    }
+
+    // EMOM: Every Minute On the Minute
+    startEMOMTimer(minutes, onMinuteTick, onComplete) {
+        let currentMinute = 1;
+
+        const runMinute = () => {
+            if (currentMinute > minutes) {
+                onComplete();
+                return;
+            }
+
+            let seconds = 60;
+            onMinuteTick(currentMinute, seconds);
+
+            const interval = setInterval(() => {
+                seconds--;
+                onMinuteTick(currentMinute, seconds);
+
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    currentMinute++;
+                    setTimeout(runMinute, 0);
+                }
+            }, 1000);
+        };
+
+        runMinute();
+    }
+
+    // AMRAP: As Many Rounds As Possible
+    startAMRAPTimer(minutes, onTick, onComplete) {
+        let remaining = minutes * 60;
+
+        this.workoutTimer = setInterval(() => {
+            onTick(Math.floor(remaining / 60), remaining % 60);
+            remaining--;
+
+            if (remaining < 0) {
+                clearInterval(this.workoutTimer);
+                this.workoutTimer = null;
+                onComplete();
+            }
+        }, 1000);
     }
 }
 

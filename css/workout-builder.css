@@ -532,3 +532,137 @@
         font-size: 18px;
     }
 }
+
+/* === 1RM PROGRESS TAB === */
+.stat-card {
+    background: var(--md-sys-color-surface-container);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--md-sys-color-primary);
+}
+
+.weight-calculator {
+    background: var(--md-sys-color-surface-container-low);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+}
+
+/* === TIMERS TAB === */
+.timers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.timer-card {
+    background: var(--md-sys-color-surface-container-low);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.timer-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.timer-card-header .material-symbols-outlined {
+    font-size: 32px;
+    color: var(--md-sys-color-primary);
+}
+
+.timer-card-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.timer-description {
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-md);
+}
+
+/* Timer Modal */
+.timer-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timer-modal-content {
+    background: var(--md-sys-color-surface);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+}
+
+.timer-close-btn {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--md-sys-color-on-surface);
+    padding: var(--spacing-xs);
+}
+
+.timer-display {
+    font-size: 6rem;
+    font-weight: 700;
+    color: var(--md-sys-color-primary);
+    margin: var(--spacing-lg) 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.timer-status {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: var(--spacing-lg);
+}
+
+.timer-controls {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .timers-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .timer-display {
+        font-size: 4rem;
+    }
+
+    .timer-status {
+        font-size: 1.125rem;
+    }
+}
