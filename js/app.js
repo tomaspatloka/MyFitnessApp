@@ -1888,8 +1888,6 @@ async function restoreFromCloud() {
 }
 
 // === APP UPDATE FUNCTIONS ===
-const APP_VERSION = '1.8.0';
-
 async function checkForUpdate() {
     showNotification('Kontroluji aktualizace...');
 
