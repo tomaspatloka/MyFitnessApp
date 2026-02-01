@@ -1984,42 +1984,72 @@ async function getServerVersion() {
 }
 
 async function forceUpdate() {
-    showNotification('Aktualizuji aplikaci...');
+    // Ask for confirmation first
+    const confirmed = confirm(
+        '⚠️ Vynutit aktualizaci?\n\n' +
+        'Tato akce:\n' +
+        '• Smaže cache aplikace\n' +
+        '• Znovu načte aplikaci\n' +
+        '• Aplikace se restartuje\n\n' +
+        'Pokračovat?'
+    );
+
+    if (!confirmed) {
+        console.log('Force update cancelled by user');
+        return;
+    }
+
+    console.log('Force update started...');
+    showNotification('⏳ Aktualizuji aplikaci...');
 
     try {
         // 1. Clear all caches
         if ('caches' in window) {
             const cacheNames = await caches.keys();
+            console.log('Found caches:', cacheNames);
             for (const name of cacheNames) {
                 await caches.delete(name);
-                console.log('Deleted cache:', name);
+                console.log('✓ Deleted cache:', name);
             }
         }
 
         // 2. Unregister all service workers
         if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
+            console.log('Found SW registrations:', registrations.length);
             for (const reg of registrations) {
                 await reg.unregister();
-                console.log('Unregistered SW');
+                console.log('✓ Unregistered SW');
             }
         }
 
         // 3. Clear any stored version info
         localStorage.removeItem('appVersion');
+        console.log('✓ Cleared version info');
 
-        // 4. Wait for cleanup
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // 4. Show reload notification
+        showNotification('🔄 Restartování aplikace...');
 
-        // 5. Force reload - using location.href for better PWA compatibility
+        // 5. Wait for cleanup and user to see notification
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // 6. Force reload - using location.href for better PWA compatibility
         // Adding a cache-busting parameter
         const url = new URL(window.location.href);
         url.searchParams.set('_refresh', Date.now());
+        console.log('Reloading to:', url.toString());
         window.location.href = url.toString();
 
     } catch (error) {
-        console.error('Force update failed:', error);
-        showNotification('Chyba při aktualizaci - zkuste zavřít a znovu otevřít aplikaci');
+        console.error('❌ Force update failed:', error);
+        showNotification('❌ Chyba při aktualizaci - zkuste zavřít a znovu otevřít aplikaci');
+
+        // Fallback: try simple reload
+        setTimeout(() => {
+            if (confirm('Zkusit jednoduchý restart aplikace?')) {
+                window.location.reload(true);
+            }
+        }, 2000);
     }
 }
 
