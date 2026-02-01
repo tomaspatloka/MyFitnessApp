@@ -4,8 +4,15 @@
 // === MAIN WORKOUT BUILDER VIEW ===
 function renderWorkoutBuilder() {
     const wb = window.WorkoutBuilderInstance;
-    const customWorkouts = wb.loadCustomWorkouts();
-    const templates = wb.templates;
+
+    // Ensure instance is initialized
+    if (!wb) {
+        console.error('WorkoutBuilderInstance not initialized');
+        return '<div class="card"><p>Chyba: Workout Builder se nenačetl správně</p></div>';
+    }
+
+    const customWorkouts = wb.customWorkouts || [];
+    const templates = wb.templates || [];
 
     return `
         <div class="workout-builder-container">

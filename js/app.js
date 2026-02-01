@@ -1,5 +1,9 @@
 "use strict";
 
+// === APP VERSION ===
+const APP_VERSION = "2.0.0";
+const APP_BUILD_DATE = "2026-02-01";
+
 // === APP STATE ===
 const AppState = {
     currentWeek: 1,
@@ -604,9 +608,16 @@ function renderContent(tabName) {
             renderAchievements();
             break;
         case 'workouts':
+            console.log('Switching to workouts tab');
+            console.log('renderWorkoutBuilder available:', typeof renderWorkoutBuilder !== 'undefined');
+            console.log('WorkoutBuilderInstance:', window.WorkoutBuilderInstance);
+
             if (typeof renderWorkoutBuilder !== 'undefined') {
-                document.getElementById('mainContent').innerHTML = renderWorkoutBuilder();
+                const content = renderWorkoutBuilder();
+                console.log('Rendered content length:', content.length);
+                document.getElementById('mainContent').innerHTML = content;
             } else {
+                console.error('renderWorkoutBuilder is not defined!');
                 document.getElementById('mainContent').innerHTML = '<div class="card"><p>Workout Builder se načítá...</p></div>';
             }
             break;
